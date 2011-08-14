@@ -19,7 +19,6 @@
         <activity
            android:name=".NWSRAddFeed"
            android:label="@string/app_name"
-           android:theme="@style/android:Theme.Dialog"
            />
         <activity
            android:name=".NWSRSettings"
