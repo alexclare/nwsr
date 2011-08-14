@@ -12,6 +12,15 @@ import android.widget.AdapterView
 import android.widget.EditText
 import android.widget.SimpleCursorAdapter
 
+//import java.io.InputStream
+//import java.io.IOException
+import java.net.URL
+import java.net.HttpURLConnection
+import java.net.UnknownHostException
+import java.net.ConnectException
+
+//import org.xml.sax.SAXParseException
+
 class NWSRFeeds extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -42,9 +51,30 @@ class NWSRFeeds extends ListActivity {
   override def onActivityResult(request: Int, result: Int, data: Intent) {
     result match {
       case Activity.RESULT_OK => {
-        db.addFeed(data.getStringExtra("url"))
-        cursor.requery()
-        adapter.notifyDataSetChanged()
+        val base = data.getStringExtra("url")
+        val url = new URL(if (base.startsWith("http://")) base
+                          else "http://" + base)
+        val connection = url.openConnection().asInstanceOf[HttpURLConnection]
+        try {
+          val istream = connection.getInputStream()
+          val data = FeedData.parseFeed(istream)
+          // parseFeed might take a long time; feedback there?
+          db.addFeed(data.title, data.link)
+          cursor.requery()
+          adapter.notifyDataSetChanged()
+        } catch {
+          // gotta put in feed-back
+          case ex: UnknownHostException => // Bad URL
+          //case ex: ConnectException => // Can't connect
+          //SAXNotSupportedException
+          /*
+          case ex: IOException => // Bad URL?
+          case ex: SAXParseException => // Good URL, but not XML
+          case ex: NotFeedException => // XML, but not an RSS/Atom feed
+          */
+        } finally {
+          connection.disconnect()
+        }
       }
       case _ =>
     }

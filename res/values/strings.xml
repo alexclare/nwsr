@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NWSR</string>
-    <string name="nope">blah blah blah 3 men in the tub</string>
+    <string name="nope">URGENT FILL ME IN fill me in URGENT FILL ME IN</string>
     <string name="menu_headlines">News</string>
     <string name="menu_feeds">News Feeds</string>
     <string name="menu_settings">Settings</string>

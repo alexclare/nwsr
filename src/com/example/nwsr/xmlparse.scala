@@ -1,60 +1,54 @@
+package com.example.nwsr
+
 import scala.xml.Elem
 import scala.xml.Node
 import scala.xml.NodeSeq
-import scala.xml.Source
 import scala.xml.XML
 
-import org.xml.sax.SAXParseException
+import java.io.InputStream
 
 // Etag/last-modified in HTTP header
 // set "updated" based on user refresh, no date parsing
 
-object FeedParser {
-  case class Story(title: String, link: String)
-  case class Title(title: String, link: String)
+class NotFeedException() extends Exception() { }
 
-  // Might need additional exception handling here (i.e. malformed RSS/Atom)
-  def parseRSS(channel: Node): (Title, Seq[Story]) = {
-    val title = Title((channel \ "title").text,
-                      (channel \ "link").text)
+class FeedData (
+  val title: String,
+  val link: String
+)
+{
+}
+
+// Could be written really easily in Scala, but there's a bug in Android
+//   (involving SAXNotSupportedException) that wasn't fixed until 2.2
+// Need handling for malformed RSS/Atom
+object FeedData {
+  def parseRSS(channel: Node): FeedData = {
+    /*
     val stories = for (story <- channel \ "item")
                   yield Story((story \ "title").text, (story \ "link").text)
-    (title, stories)
+    */
+    new FeedData((channel \ "title").text,
+                 (channel \ "link").text)
   }
 
-  def parseAtom(feed: Elem, nodes: NodeSeq): (Title, Seq[Story]) = {
-    val title = Title((feed \ "title").text,
-                      ((feed \ "link").head \ "@href").text)
+  def parseAtom(feed: Elem, nodes: NodeSeq): FeedData = {
+    /*
     val stories = for (story @ <entry>{_*}</entry> <- nodes)
                   yield Story((story \ "title").text,
                               ((story \ "link").head \ "@href").text)
-    (title, stories)
+    */
+    new FeedData((feed \ "title").text,
+                 ((feed \ "link").head \ "@href").text)
   }
 
-  def main(args: Array[String]) {
-    if (args.length > 0) {
-      val istream = Source.fromFile(args(0))
-      var doc: Option[scala.xml.Elem] = None
-      try {
-        doc = Some(XML.load(istream))
-      } catch {
-        case ex: SAXParseException => doc = None
-      }
-      doc match {
-        case Some(elems) => println(elems.label)
-        case None =>
-      }
-      println(doc match {
-        case Some(elems) => {
-          elems match {
-            case <rss>{channel}</rss> => parseRSS(channel)
-            case <feed>{inner @ _*}</feed> => parseAtom(elems, inner)
-            case _ => "nope"
-          }
-        }
-        // Malformed/not XML
-        case None => println("malformed or not XML")
-      })
+  def parseFeed(input: InputStream): FeedData = {
+    val document = XML.load(input)
+    document match {
+      case <rss>{channel}</rss> => parseRSS(channel)
+      case <feed>{inner @ _*}</feed> => parseAtom(document, inner)
+      case _ => throw new NotFeedException()
     }
   }
 }
+

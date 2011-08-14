@@ -47,11 +47,11 @@ class NWSRDatabase (context: Context) {
   def feeds(): Cursor = db.query("feeds", Array("_id", "title"), null, null,
                                  null, null, "title asc")
 
-  def addFeed(url: String) = {
+  def addFeed(title: String, link: String) = {
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis()/1000
-    values.put("title", url)
-    values.put("link", url)
+    values.put("title", title)
+    values.put("link", link)
     // It won't compile with the long value in Scala, must be a bug
     values.put("updated", java.lang.Long.valueOf(now))
     db.insert("feeds", null, values)
