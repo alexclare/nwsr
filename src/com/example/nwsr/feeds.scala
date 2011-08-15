@@ -12,14 +12,11 @@ import android.widget.AdapterView
 import android.widget.EditText
 import android.widget.SimpleCursorAdapter
 
-//import java.io.InputStream
-//import java.io.IOException
 import java.net.URL
 import java.net.HttpURLConnection
 import java.net.UnknownHostException
-import java.net.ConnectException
 
-//import org.xml.sax.SAXParseException
+import org.xml.sax.SAXParseException
 
 class NWSRFeeds extends ListActivity {
   var db: NWSRDatabase = _
@@ -65,13 +62,8 @@ class NWSRFeeds extends ListActivity {
         } catch {
           // gotta put in feed-back
           case ex: UnknownHostException => // Bad URL
-          //case ex: ConnectException => // Can't connect
-          //SAXNotSupportedException
-          /*
-          case ex: IOException => // Bad URL?
           case ex: SAXParseException => // Good URL, but not XML
           case ex: NotFeedException => // XML, but not an RSS/Atom feed
-          */
         } finally {
           connection.disconnect()
         }

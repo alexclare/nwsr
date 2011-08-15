@@ -8,13 +8,14 @@ import android.database.sqlite.SQLiteOpenHelper
 
 class NWSRDatabaseHelper (val context: Context)
 extends SQLiteOpenHelper (context, "NWSR", null, 1) {
+/*
   val createStories = ("create table stories (" +
                       "_id integer primary key, " +
                       "title string, " +
                       "hash_title integer, " +
                       "link string, " +
                       "updated integer);")
-
+*/
   val createFeeds = ("create table feeds (" +
                     "_id integer primary key, " +
                     "title string, " +
@@ -22,17 +23,17 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                     "updated integer, " +
                     "etag string, " +
                     "last_modified string);")
-
+/*
   val createWords = ("create table words (" +
                     "_id integer primary key, " +
                     "repr string unique, " +
                     "positive integer, " +
                     "negative integer);")
-
+*/
   override def onCreate(db: SQLiteDatabase) {
-    db.execSQL(createStories)
+    //db.execSQL(createStories)
     db.execSQL(createFeeds)
-    db.execSQL(createWords)
+    //db.execSQL(createWords)
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
@@ -49,15 +50,22 @@ class NWSRDatabase (context: Context) {
 
   def addFeed(title: String, link: String) = {
     val values = new ContentValues()
-    val now: Long = System.currentTimeMillis()/1000
+    val now: Long = System.currentTimeMillis/1000
     values.put("title", title)
     values.put("link", link)
-    // It won't compile with the long value in Scala, must be a bug
+
+    // This won't compile with the long value in Scala
     values.put("updated", java.lang.Long.valueOf(now))
+
     db.insert("feeds", null, values)
   }
 
   def deleteFeed(id: Long) {
     db.delete("feeds", "_id = " + id, null)
   }
+
+/*
+Leak found
+java.lang.IllegalStateException: /data/data/com.example.nwsr/databases/NWSR SQLiteDatabase created and never closed
+*/
 }
