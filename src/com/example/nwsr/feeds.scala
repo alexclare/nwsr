@@ -27,7 +27,7 @@ class NWSRFeeds extends ListActivity {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.feeds);
 
-    db = new NWSRDatabase(this)
+
     
     val parent = this
     findViewById(R.id.feeds_add_button).setOnClickListener(
@@ -37,6 +37,7 @@ class NWSRFeeds extends ListActivity {
         }
       })
 
+    db = new NWSRDatabase(this)
     cursor = db.feeds()
     adapter = new SimpleCursorAdapter(
       this, R.layout.feed, cursor, Array("title"), Array(R.id.feed_title))
@@ -55,16 +56,19 @@ class NWSRFeeds extends ListActivity {
         try {
           val istream = connection.getInputStream()
           val data = FeedData.parseFeed(istream)
-          // parseFeed might take a long time; feedback there?
+          // parseFeed might take a long time; feedback here?
+          // heck, this whole process (parsing, bayes filter, removing dupes) might
           db.addFeed(data.title, data.link)
+          for (story <- data.stories)
+            db.addStory(story.title, story.link)
           cursor.requery()
           adapter.notifyDataSetChanged()
-        } catch {
+        } /*catch {
           // gotta put in feed-back
           case ex: UnknownHostException => // Bad URL
           case ex: SAXParseException => // Good URL, but not XML
           case ex: NotFeedException => // XML, but not an RSS/Atom feed
-        } finally {
+        }*/ finally {
           connection.disconnect()
         }
       }

@@ -6,16 +6,18 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+import scala.util.Random
+
 class NWSRDatabaseHelper (val context: Context)
 extends SQLiteOpenHelper (context, "NWSR", null, 1) {
-/*
+
   val createStories = ("create table stories (" +
                       "_id integer primary key, " +
                       "title string, " +
-                      "hash_title integer, " +
                       "link string, " +
+                      "weight real, " +
                       "updated integer);")
-*/
+
   val createFeeds = ("create table feeds (" +
                     "_id integer primary key, " +
                     "title string, " +
@@ -31,7 +33,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                     "negative integer);")
 */
   override def onCreate(db: SQLiteDatabase) {
-    //db.execSQL(createStories)
+    db.execSQL(createStories)
     db.execSQL(createFeeds)
     //db.execSQL(createWords)
   }
@@ -44,6 +46,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
 class NWSRDatabase (context: Context) {
   var helper: NWSRDatabaseHelper = new NWSRDatabaseHelper(context)
   var db: SQLiteDatabase = helper.getWritableDatabase()
+  val rng: Random = new Random()
 
   def feeds(): Cursor = db.query("feeds", Array("_id", "title"), null, null,
                                  null, null, "title asc")
@@ -63,6 +66,23 @@ class NWSRDatabase (context: Context) {
   def deleteFeed(id: Long) {
     db.delete("feeds", "_id = " + id, null)
   }
+
+  def addStory(title: String, link: String) = {
+    // Bloom filter to determine whether or not story is a dupe
+    val values = new ContentValues()
+    val now: Long = System.currentTimeMillis/1000
+    values.put("title", title)
+    values.put("link", link)
+    // NB filter goes here
+    values.put("weight", rng.nextDouble())
+    values.put("updated", java.lang.Long.valueOf(now))
+
+    db.insert("stories", null, values)
+  }
+
+  def stories(): Cursor = db.query(
+    "stories", Array("_id", "title", "link"), null, null, null,
+    null, "weight desc")
 
 /*
 Leak found
