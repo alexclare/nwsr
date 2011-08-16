@@ -11,20 +11,23 @@ import scala.util.Random
 class NWSRDatabaseHelper (val context: Context)
 extends SQLiteOpenHelper (context, "NWSR", null, 1) {
 
-  val createStories = ("create table stories (" +
-                      "_id integer primary key, " +
-                      "title string, " +
-                      "link string, " +
-                      "weight real, " +
-                      "updated integer);")
+  val createStories = ("create table story (" +
+                       "_id integer primary key, " +
+                       "title string, " +
+                       "link string, " +
+                       "weight real, " +
+                       "updated integer, " +
+                       "feed integer references feed" +
+                       ");")
 
-  val createFeeds = ("create table feeds (" +
-                    "_id integer primary key, " +
-                    "title string, " +
-                    "link string, " +
-                    "updated integer, " +
-                    "etag string, " +
-                    "last_modified string);")
+  val createFeeds = ("create table feed (" +
+                     "_id integer primary key, " +
+                     "title string, " +
+                     "link string, " +
+                     "updated integer, " +
+                     "etag string, " +
+                     "last_modified string" +
+                     ");")
 /*
   val createWords = ("create table words (" +
                     "_id integer primary key, " +
@@ -48,7 +51,7 @@ class NWSRDatabase (context: Context) {
   var db: SQLiteDatabase = helper.getWritableDatabase()
   val rng: Random = new Random()
 
-  def feeds(): Cursor = db.query("feeds", Array("_id", "title"), null, null,
+  def feeds(): Cursor = db.query("feed", Array("_id", "title"), null, null,
                                  null, null, "title asc")
 
   def addFeed(title: String, link: String) = {
@@ -60,28 +63,31 @@ class NWSRDatabase (context: Context) {
     // This won't compile with the long value in Scala
     values.put("updated", java.lang.Long.valueOf(now))
 
-    db.insert("feeds", null, values)
+    db.insert("feed", null, values)
   }
 
   def deleteFeed(id: Long) {
-    db.delete("feeds", "_id = " + id, null)
+    db.delete("feed", "_id = " + id, null)
+    db.delete("story", "feed = " + id, null)
   }
 
-  def addStory(title: String, link: String) = {
+  def addStory(title: String, link: String, id: Long) = {
     // Bloom filter to determine whether or not story is a dupe
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis/1000
     values.put("title", title)
-    values.put("link", link)
+    // Assume http, https links remain as they are
+    values.put("link", link.stripPrefix("http://"))
     // NB filter goes here
     values.put("weight", rng.nextDouble())
     values.put("updated", java.lang.Long.valueOf(now))
+    values.put("feed", java.lang.Long.valueOf(id))
 
-    db.insert("stories", null, values)
+    db.insert("story", null, values)
   }
 
   def stories(): Cursor = db.query(
-    "stories", Array("_id", "title", "link"), null, null, null,
+    "story", Array("_id", "title", "link"), null, null, null,
     null, "weight desc")
 
 /*

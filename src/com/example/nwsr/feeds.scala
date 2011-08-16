@@ -1,7 +1,10 @@
 package com.example.nwsr
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.app.Dialog
 import android.app.ListActivity
+import android.content.DialogInterface
 import android.content.Intent
 import android.database.Cursor
 import android.os.Bundle
@@ -26,8 +29,6 @@ class NWSRFeeds extends ListActivity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.feeds);
-
-
     
     val parent = this
     findViewById(R.id.feeds_add_button).setOnClickListener(
@@ -51,6 +52,7 @@ class NWSRFeeds extends ListActivity {
       case Activity.RESULT_OK => {
         val base = data.getStringExtra("url")
         val url = new URL(if (base.startsWith("http://")) base
+                          // also https
                           else "http://" + base)
         val connection = url.openConnection().asInstanceOf[HttpURLConnection]
         try {
@@ -58,22 +60,38 @@ class NWSRFeeds extends ListActivity {
           val data = FeedData.parseFeed(istream)
           // parseFeed might take a long time; feedback here?
           // heck, this whole process (parsing, bayes filter, removing dupes) might
-          db.addFeed(data.title, data.link)
+          val id = db.addFeed(data.title, data.link)
           for (story <- data.stories)
-            db.addStory(story.title, story.link)
+            db.addStory(story.title, story.link, id)
           cursor.requery()
           adapter.notifyDataSetChanged()
-        } /*catch {
-          // gotta put in feed-back
-          case ex: UnknownHostException => // Bad URL
-          case ex: SAXParseException => // Good URL, but not XML
-          case ex: NotFeedException => // XML, but not an RSS/Atom feed
-        }*/ finally {
+        } catch {
+          case _ : UnknownHostException => showDialog(0)
+          case _ : SAXParseException => showDialog(1)
+          case _ : NotFeedException => showDialog(1)
+        } finally {
           connection.disconnect()
         }
       }
       case _ =>
     }
+  }
+
+  override def onCreateDialog(id: Int): Dialog = {
+    val builder = new AlertDialog.Builder(this)
+    builder.setCancelable(false)
+    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+      def onClick(dialog: DialogInterface, id: Int) {
+        dialog.dismiss()
+      }
+    })
+    builder.setTitle("Add feed error")
+    builder.setMessage(id match {
+      case 0 => "Could not load URL"
+      case 1 => "Not a valid RSS/Atom feed"
+      case _ => "Unknown Error"
+    })
+    builder.create()
   }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,

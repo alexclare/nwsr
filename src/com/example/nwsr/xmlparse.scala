@@ -1,5 +1,7 @@
 package com.example.nwsr
 
+import scala.collection.mutable.StringBuilder
+
 import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -38,19 +40,31 @@ case object AtomFeed extends FeedType
 
 object FeedData {
 
+  def extractText(node: Node): String = {
+    val result = new StringBuilder()
+    foreach(node.getChildNodes) {
+      (child: Node) => result.append(child.getNodeType match {
+        case Node.TEXT_NODE => child.getNodeValue
+        // handle HTML entities properly at some point
+        case _ => " "
+      })
+    }
+    result.toString
+  }
+
   def extractStory(node: Node, feedType: FeedType): Story = {
     var title = ""
     var link = ""
     foreach(node.getChildNodes) {
-      (child: Node) =>
-        if (child.getNodeName == "title")
-          title = child.getFirstChild.getNodeValue
-        else if (child.getNodeName == "link")
-          link = feedType match {
-            case RSSFeed => child.getFirstChild.getNodeValue
-            case AtomFeed => child.getAttributes
-                               .getNamedItem("href").getNodeValue
+      (child: Node) => child.getNodeName match {
+        case "title" => title = extractText(child)
+        case "link" => link = feedType match {
+          case RSSFeed => child.getFirstChild.getNodeValue
+          case AtomFeed => child.getAttributes
+                             .getNamedItem("href").getNodeValue
           }
+        case _ =>
+      }
     }
     Story(title, link)
   }
@@ -60,28 +74,26 @@ object FeedData {
     val doc = DocumentBuilderFactory.newInstance
       .newDocumentBuilder.parse(input)
     val root = doc.getDocumentElement
-    root.getTagName match {
-      case "rss" => {
-        val primary = extractStory(root.getFirstChild, RSSFeed)
-        result.title = primary.title
-        result.link = primary.link
-        foreach(root.getElementsByTagName("item")) {
-          (item:Node) =>
-          result.stories = extractStory(item, RSSFeed) :: result.stories
-        }
-      }
-      case "feed" => {
-        val primary = extractStory(root, AtomFeed)
-        result.title = primary.title
-        result.link = primary.link
-        foreach(root.getElementsByTagName("entry")) {
-          (entry:Node) =>
-          result.stories = extractStory(entry, AtomFeed) :: result.stories
-        }
-      }
+    val feedType = root.getTagName match {
+      case "rss" => RSSFeed
+      case "feed" => AtomFeed
       case _ => throw new NotFeedException()
+    }
+    val primary = extractStory(
+      feedType match {
+        case RSSFeed => root.getFirstChild
+        case AtomFeed => root
+      }, feedType)
+    result.title = primary.title
+    result.link = primary.link
+    foreach(root.getElementsByTagName(
+      feedType match {
+        case RSSFeed => "item"
+        case AtomFeed => "entry"
+      })) {
+      (story:Node) =>
+        result.stories = extractStory(story, feedType) :: result.stories
     }
     result
   }
 }
-
