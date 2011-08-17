@@ -17,6 +17,7 @@ import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.TextView
 
+// Move all database management (i.e. cursor stuff) to the Adapter class?
 class NWSR extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -24,6 +25,7 @@ class NWSR extends ListActivity {
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
+    setTitle(R.string.title_headlines)
     setContentView(R.layout.headlines);
 
     db = new NWSRDatabase(this)
@@ -66,6 +68,9 @@ class NWSR extends ListActivity {
     if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
       val inflater = getMenuInflater()
       inflater.inflate(R.menu.context_headlines, menu)
+      menu.setHeaderTitle(
+        menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].targetView
+        .findViewById(R.id.headline_title).asInstanceOf[TextView].getText)
     }
   }
 
@@ -84,6 +89,12 @@ class NWSR extends ListActivity {
       }
       case _ => super.onContextItemSelected(item)
     }
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    cursor.close()
+    db.close()
   }
 }
 
@@ -131,6 +142,7 @@ class HeadlineListAdapter (context: Context, cursor: Cursor) extends BaseAdapter
       convertView
     }
   }
+
 }
 
 class NWSRSettings extends PreferenceActivity {

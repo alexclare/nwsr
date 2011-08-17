@@ -90,8 +90,7 @@ class NWSRDatabase (context: Context) {
     "story", Array("_id", "title", "link"), null, null, null,
     null, "weight desc", "20")
 
-/*
-Leak found
-java.lang.IllegalStateException: /data/data/com.example.nwsr/databases/NWSR SQLiteDatabase created and never closed
-*/
+  def close() {
+    helper.close()
+  }
 }

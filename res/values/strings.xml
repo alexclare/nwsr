@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NWSR</string>
+    <string name="title_headlines">NWSR - Headlines</string>
     <string name="headlines_empty">No new stories</string>
     <string name="headlines_next">More stories</string>
     <string name="menu_open_browser">Open in browser</string>
@@ -8,11 +9,13 @@
     <string name="menu_feeds">News Feeds</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_refresh">Refresh</string>
+    <string name="title_feeds">NWSR - News Feeds</string>
     <string name="feeds_add_button">+</string>
     <string name="feeds_add_text">Add new feed</string>
     <string name="menu_delete">Delete</string>
     <string name="add_feeds_button_ok">OK</string>
     <string name="add_feeds_button_cancel">Cancel</string>
+    <string name="title_preferences">NWSR - Preferences</string>
     <string name="prefs_preferences_title">NWSR Preferences</string>
     <string name="prefs_stories_per_page_title">Headlines per
       page</string>

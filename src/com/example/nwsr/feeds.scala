@@ -107,6 +107,9 @@ class NWSRFeeds extends ListActivity {
     if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
       val inflater = getMenuInflater()
       inflater.inflate(R.menu.context_feeds, menu)
+      menu.setHeaderTitle(
+        menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].targetView
+        .findViewById(R.id.feed_title).asInstanceOf[TextView].getText)
     }
   }
 
@@ -122,6 +125,12 @@ class NWSRFeeds extends ListActivity {
       }
       case _ => super.onContextItemSelected(item)
     }
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    cursor.close()
+    db.close()
   }
 }
 
