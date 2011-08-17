@@ -189,12 +189,4 @@ class FeedListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
     }
   }
 
-  /*
-  override def getItemViewType(position: Int): Int = position match {
-    case 0 => 0
-    case p => 1
-  }
-
-  override def getViewTypeCount: Int = 2
-  */
 }

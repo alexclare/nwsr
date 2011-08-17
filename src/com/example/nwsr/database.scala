@@ -88,7 +88,7 @@ class NWSRDatabase (context: Context) {
 
   def stories(): Cursor = db.query(
     "story", Array("_id", "title", "link"), null, null, null,
-    null, "weight desc")
+    null, "weight desc", "20")
 
 /*
 Leak found

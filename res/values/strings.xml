@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">NWSR</string>
     <string name="headlines_empty">No new stories</string>
+    <string name="headlines_next">More stories</string>
     <string name="menu_headlines">News</string>
     <string name="menu_feeds">News Feeds</string>
     <string name="menu_settings">Settings</string>
