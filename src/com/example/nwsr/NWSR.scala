@@ -74,7 +74,8 @@ class NWSR extends ListActivity {
       AdapterView.AdapterContextMenuInfo]
     item.getItemId() match {
       case R.id.open_browser => {
-        val url = db.getUrl(info.id)
+        val url = info.targetView.findViewById(R.id.headline_link)
+          .asInstanceOf[TextView].getText.toString
         val intent = new Intent(Intent.ACTION_VIEW)
           .setData(Uri.parse(if (url.startsWith("http://")) url
                              else "http://" + url))

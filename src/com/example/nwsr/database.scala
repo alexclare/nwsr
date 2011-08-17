@@ -90,16 +90,6 @@ class NWSRDatabase (context: Context) {
     "story", Array("_id", "title", "link"), null, null, null,
     null, "weight desc", "20")
 
-  def getUrl(id: Long): String = {
-    // I should be able to get this information from the UI at this point instead
-    val cur = db.query("story", Array("link"), "_id=?", Array(id.toString),
-                       null, null, null)
-    cur.moveToFirst()
-    val result = cur.getString(0)
-    cur.close()
-    result
-  }
-
 /*
 Leak found
 java.lang.IllegalStateException: /data/data/com.example.nwsr/databases/NWSR SQLiteDatabase created and never closed
