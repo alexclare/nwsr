@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView
+   xmlns:android="http://schemas.android.com/apk/res/android"
+   android:id="@+id/feed_title"
+   android:layout_width="fill_parent" 
+   android:layout_height="wrap_content"
+   android:textSize="22sp"
+   android:padding="5dp"
+   android:singleLine="true"
+   android:text="@string/feeds_add_text"
+   android:longClickable="false"
+/>

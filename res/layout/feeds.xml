@@ -4,37 +4,15 @@
    android:orientation="vertical"
    android:layout_width="fill_parent" 
    android:layout_height="fill_parent">
-
-  <TextView
-     android:id="@+id/feeds_add_button"
-     android:layout_width="fill_parent" 
-     android:layout_height="wrap_content" 
-     android:text="@string/feeds_add_text"
-     android:textSize="22sp"
-     android:gravity="center"
-     android:layout_weight="1"
-     android:padding="5dp"
-     />
-
-  <View
-     android:layout_width="fill_parent" 
-     android:layout_height="2dp"
-     android:background="#999999"
-     />
-
   <ListView
      android:id="@android:id/list"
      android:layout_width="fill_parent" 
      android:layout_height="wrap_content"
-     android:layout_weight="9"
      />
-
   <TextView
      android:id="@android:id/empty"
      android:layout_width="fill_parent" 
      android:layout_height="wrap_content" 
      android:text=" "
-     android:layout_weight="9"
      />
-
 </LinearLayout>

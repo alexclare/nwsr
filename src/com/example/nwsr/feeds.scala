@@ -4,16 +4,20 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ListActivity
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.database.Cursor
 import android.os.Bundle
 import android.view.ContextMenu
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.BaseAdapter
 import android.widget.EditText
-import android.widget.SimpleCursorAdapter
+import android.widget.TextView
 
 import java.net.URL
 import java.net.HttpURLConnection
@@ -21,30 +25,32 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
+// TODO: Replace arbitrary constants with enums/ints
 class NWSRFeeds extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
-  var adapter: SimpleCursorAdapter = _
+  var adapter: FeedListAdapter = _
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.feeds);
-    
-    val parent = this
-    findViewById(R.id.feeds_add_button).setOnClickListener(
-      new View.OnClickListener {
-        def onClick(v: View) {
-          startActivityForResult(new Intent(parent, classOf[NWSRAddFeed]), 0)
-        }
-      })
 
     db = new NWSRDatabase(this)
     cursor = db.feeds()
-    adapter = new SimpleCursorAdapter(
-      this, R.layout.feed, cursor, Array("title"), Array(R.id.feed_title))
+    adapter = new FeedListAdapter(this, cursor)
     setListAdapter(adapter)
 
-    registerForContextMenu(getListView())
+    val activity = this
+    getListView.setOnItemClickListener(
+      new AdapterView.OnItemClickListener() {
+        def onItemClick(parent: AdapterView[_], view: View,
+                        position: Int, id: Long) {
+          if (position == 0)
+            startActivityForResult(
+              new Intent(activity, classOf[NWSRAddFeed]), 0)
+        }
+      })
+    registerForContextMenu(getListView)
   }
 
   override def onActivityResult(request: Int, result: Int, data: Intent) {
@@ -96,9 +102,12 @@ class NWSRFeeds extends ListActivity {
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
+    // Not a good solution; still highlights the "add feed" item with long press
     super.onCreateContextMenu(menu, v, menuInfo)
-    val inflater = getMenuInflater()
-    inflater.inflate(R.menu.context_feeds, menu)
+    if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
+      val inflater = getMenuInflater()
+      inflater.inflate(R.menu.context_feeds, menu)
+    }
   }
 
   override def onContextItemSelected(item: MenuItem): Boolean = {
@@ -140,4 +149,52 @@ class NWSRAddFeed extends Activity {
         }
       })
   }
+}
+
+
+class FeedListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
+  val inflater = LayoutInflater.from(context)
+
+  override def getCount(): Int = cursor.getCount + 1
+
+  override def getItem(position: Int): Object = position match {
+    case 0 => null
+    case p => {
+      cursor.moveToPosition(p-1)
+      cursor.getString(1)
+    }
+  }
+
+  override def getItemId(position: Int): Long = position match {
+    case 0 => -1
+    case p => {
+      cursor.moveToPosition(p-1)
+      cursor.getLong(0)
+    }
+  }
+
+  override def getView(position: Int, convertView: View,
+                       parent: ViewGroup): View = position match {
+    case 0 => inflater.inflate(R.layout.button_add_feed, null)
+    case p => if (convertView == null || convertView.getTag == null) {
+      val view = inflater.inflate(R.layout.feed, null)
+      val tv = view.findViewById(R.id.feed_title).asInstanceOf[TextView]
+      tv.setText(getItem(position).asInstanceOf[String])
+      view.setTag(tv)
+      view
+    } else {
+      convertView.getTag.asInstanceOf[TextView]
+        .setText(getItem(position).asInstanceOf[String])
+      convertView
+    }
+  }
+
+  /*
+  override def getItemViewType(position: Int): Int = position match {
+    case 0 => 0
+    case p => 1
+  }
+
+  override def getViewTypeCount: Int = 2
+  */
 }
