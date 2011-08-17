@@ -4,13 +4,16 @@ import android.app.ListActivity
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
+import android.net.Uri
 import android.os.Bundle
 import android.preference.PreferenceActivity
+import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.TextView
 
@@ -27,6 +30,7 @@ class NWSR extends ListActivity {
     cursor = db.stories()
     adapter = new HeadlineListAdapter(this, cursor)
     setListAdapter(adapter)
+    registerForContextMenu(getListView)
   }
 
   override def onResume() {
@@ -54,6 +58,32 @@ class NWSR extends ListActivity {
       }
       case _ => super.onOptionsItemSelected(item)
     }
+
+  override def onCreateContextMenu(menu: ContextMenu, v: View,
+                                   menuInfo: ContextMenu.ContextMenuInfo) {
+    // Not a good solution; still highlights excluded items with long press
+    super.onCreateContextMenu(menu, v, menuInfo)
+    if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
+      val inflater = getMenuInflater()
+      inflater.inflate(R.menu.context_headlines, menu)
+    }
+  }
+
+  override def onContextItemSelected(item: MenuItem): Boolean = {
+    val info = item.getMenuInfo().asInstanceOf[
+      AdapterView.AdapterContextMenuInfo]
+    item.getItemId() match {
+      case R.id.open_browser => {
+        val url = db.getUrl(info.id)
+        val intent = new Intent(Intent.ACTION_VIEW)
+          .setData(Uri.parse(if (url.startsWith("http://")) url
+                             else "http://" + url))
+        startActivity(intent)
+        true
+      }
+      case _ => super.onContextItemSelected(item)
+    }
+  }
 }
 
 class HeadlineListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
