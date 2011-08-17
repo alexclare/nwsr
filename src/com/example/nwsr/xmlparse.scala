@@ -40,13 +40,21 @@ case object AtomFeed extends FeedType
 
 object FeedData {
 
-  def extractText(node: Node): String = {
+  // Part of the Android API versions 8+, with entity encoding fixed in 11
+  def getTextContent(node: Node): String = {
     val result = new StringBuilder()
     foreach(node.getChildNodes) {
       (child: Node) => result.append(child.getNodeType match {
         case Node.TEXT_NODE => child.getNodeValue
-        // handle HTML entities properly at some point
-        case _ => " "
+        case Node.ENTITY_REFERENCE_NODE => child.getNodeName match {
+          case "#34" => "\""
+          case "#38" => "&"
+          case "#39" => "'"
+          case "#60" => "<"
+          case "#62" => ">"
+          case _ => ""
+        }
+        case _ => ""
       })
     }
     result.toString
@@ -57,9 +65,9 @@ object FeedData {
     var link = ""
     foreach(node.getChildNodes) {
       (child: Node) => child.getNodeName match {
-        case "title" => title = extractText(child)
+        case "title" => title = getTextContent(child)
         case "link" => link = feedType match {
-          case RSSFeed => child.getFirstChild.getNodeValue
+          case RSSFeed => getTextContent(child)
           case AtomFeed => child.getAttributes
                              .getNamedItem("href").getNodeValue
           }
@@ -79,13 +87,12 @@ object FeedData {
       case "feed" => AtomFeed
       case _ => throw new NotFeedException()
     }
-    val primary = extractStory(
-      feedType match {
-        case RSSFeed => root.getFirstChild
-        case AtomFeed => root
-      }, feedType)
-    result.title = primary.title
-    result.link = primary.link
+    result.title = getTextContent(root.getElementsByTagName("title").item(0))
+    result.link = feedType match {
+      case RSSFeed => getTextContent(root.getElementsByTagName("link").item(0))
+      case AtomFeed => root.getElementsByTagName("link").item(0).getAttributes
+                        .getNamedItem("href").getNodeValue
+    }
     foreach(root.getElementsByTagName(
       feedType match {
         case RSSFeed => "item"

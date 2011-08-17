@@ -51,8 +51,8 @@ class NWSRDatabase (context: Context) {
   var db: SQLiteDatabase = helper.getWritableDatabase()
   val rng: Random = new Random()
 
-  def feeds(): Cursor = db.query("feed", Array("_id", "title"), null, null,
-                                 null, null, "title asc")
+  def feeds(): Cursor = db.query("feed", Array("_id", "title", "link"),
+                                 null, null, null, null, "title asc")
 
   def addFeed(title: String, link: String) = {
     val values = new ContentValues()

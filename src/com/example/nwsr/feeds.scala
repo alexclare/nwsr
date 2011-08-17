@@ -155,13 +155,15 @@ class NWSRAddFeed extends Activity {
 class FeedListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
   val inflater = LayoutInflater.from(context)
 
+  case class FeedView(title: TextView, link: TextView)
+
   override def getCount(): Int = cursor.getCount + 1
 
   override def getItem(position: Int): Object = position match {
     case 0 => null
     case p => {
       cursor.moveToPosition(p-1)
-      cursor.getString(1)
+      (cursor.getString(1), cursor.getString(2))
     }
   }
 
@@ -178,13 +180,19 @@ class FeedListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
     case 0 => inflater.inflate(R.layout.button_add_feed, null)
     case p => if (convertView == null || convertView.getTag == null) {
       val view = inflater.inflate(R.layout.feed, null)
-      val tv = view.findViewById(R.id.feed_title).asInstanceOf[TextView]
-      tv.setText(getItem(position).asInstanceOf[String])
-      view.setTag(tv)
+      val fv = FeedView(
+        view.findViewById(R.id.feed_title).asInstanceOf[TextView],
+        view.findViewById(R.id.feed_link).asInstanceOf[TextView])
+      val text = getItem(position).asInstanceOf[Tuple2[String, String]]
+      fv.title.setText(text._1)
+      fv.link.setText(text._2)
+      view.setTag(fv)
       view
     } else {
-      convertView.getTag.asInstanceOf[TextView]
-        .setText(getItem(position).asInstanceOf[String])
+      val fv = convertView.getTag.asInstanceOf[FeedView]
+      val text = getItem(position).asInstanceOf[Tuple2[String, String]]
+      fv.title.setText(text._1)
+      fv.link.setText(text._2)
       convertView
     }
   }
