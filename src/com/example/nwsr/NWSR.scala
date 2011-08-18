@@ -7,6 +7,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.preference.PreferenceActivity
+import android.preference.PreferenceManager
 import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.Menu
@@ -26,13 +27,29 @@ class NWSR extends ListActivity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setTitle(R.string.title_headlines)
-    setContentView(R.layout.headlines);
+    setContentView(R.layout.headlines)
+    PreferenceManager.setDefaultValues(this, R.xml.settings, false)
 
     db = new NWSRDatabase(this)
     cursor = db.stories()
     adapter = new HeadlineListAdapter(this, cursor)
     setListAdapter(adapter)
     registerForContextMenu(getListView)
+    getListView.setOnItemClickListener(
+      new AdapterView.OnItemClickListener() {
+        def onItemClick(parent: AdapterView[_], view: View,
+                        position: Int, id: Long) {
+          if (id < 0) {
+            cursor.moveToFirst()
+            while (!cursor.isAfterLast) {
+              db.filterStory(cursor.getLong(0), false)
+              cursor.moveToNext()
+            }
+            cursor.requery()
+            adapter.notifyDataSetChanged()
+          }
+        }
+      })
   }
 
   override def onResume() {
@@ -81,6 +98,7 @@ class NWSR extends ListActivity {
       case R.id.open_browser => {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
+        db.filterStory(info.id, true)
         val intent = new Intent(Intent.ACTION_VIEW)
           .setData(Uri.parse(if (url.startsWith("http://")) url
                              else "http://" + url))
