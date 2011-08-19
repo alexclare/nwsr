@@ -18,17 +18,25 @@ import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.TextView
 
+import android.widget.CursorAdapter
+
 // Move all database management (i.e. cursor stuff) to the Adapter class?
 class NWSR extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: HeadlineListAdapter = _
+  //val footer: TextView = _
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setTitle(R.string.title_headlines)
     setContentView(R.layout.headlines)
     PreferenceManager.setDefaultValues(this, R.xml.settings, false)
+
+    /*
+    val inflater = LayoutInflater.from(this)
+    footer = inflater.inflate(R.layout.button_next_headline, getListView)
+    */
 
     db = new NWSRDatabase(this)
     cursor = db.stories()
@@ -169,3 +177,4 @@ class NWSRSettings extends PreferenceActivity {
     addPreferencesFromResource(R.xml.settings);
   }
 }
+

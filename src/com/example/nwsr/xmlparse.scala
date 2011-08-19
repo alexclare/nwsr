@@ -8,8 +8,6 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 
-// Etag/last-modified in HTTP header
-// set "updated" based on user refresh, no date parsing
 
 object XmlUtils {
   def foreach(list: NodeList)(fn:(Node => Unit)) {

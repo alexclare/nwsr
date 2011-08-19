@@ -105,8 +105,15 @@ class NWSRDatabase (context: Context) {
     val posHeadlines = prefs.getLong("positive_headline_count", 0)
     val negHeadlines = prefs.getLong("negative_headline_count", 0)
     val totHeadlines: Double = posHeadlines + negHeadlines
-    val posDenom: Double = 1.0/(prefs.getLong("positive_word_count", 0) + 1)
-    val negDenom: Double = 1.0/(prefs.getLong("negative_word_count", 0) + 1)
+    val totWords = {
+      val cWord = db.rawQuery("select count(*) from word", Array.empty[String])
+      cWord.moveToFirst()
+      val result = cWord.getLong(0)
+      cWord.close()
+      result
+    }
+    val posDenom: Double = 1.0/(prefs.getLong("positive_word_count", 0) + totWords)
+    val negDenom: Double = 1.0/(prefs.getLong("negative_word_count", 0) + totWords)
     var positive: Double = posHeadlines / totHeadlines
     var negative: Double = negHeadlines / totHeadlines
     for {
@@ -120,7 +127,7 @@ class NWSRDatabase (context: Context) {
       if (cWord.getCount > 0) {
         cWord.moveToFirst()
         positive = positive * posDenom * (cWord.getLong(0) + 1)
-        negative = negative * negDenom * (cWord.getLong(1) + 2)
+        negative = negative * negDenom * (cWord.getLong(1) + 1)
       }
       cWord.close()
     }

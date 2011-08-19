@@ -51,33 +51,18 @@ class NWSRFeeds extends ListActivity {
         }
       })
     registerForContextMenu(getListView)
+
+    if (getIntent.getAction == Intent.ACTION_VIEW) {
+      // Issue 950 causes some feeds not to be recognized by the intent
+      //   filter; fixed in 2.2
+      addFeed(getIntent.getDataString)
+    }
   }
 
   override def onActivityResult(request: Int, result: Int, data: Intent) {
     result match {
       case Activity.RESULT_OK => {
-        val base = data.getStringExtra("url")
-        val url = new URL(if (base.startsWith("http://")) base
-                          // also https
-                          else "http://" + base)
-        val connection = url.openConnection().asInstanceOf[HttpURLConnection]
-        try {
-          val istream = connection.getInputStream()
-          val data = FeedData.parseFeed(istream)
-          // parseFeed might take a long time; feedback here?
-          // heck, this whole process (parsing, bayes filter, removing dupes) might
-          val id = db.addFeed(data.title, data.link)
-          for (story <- data.stories)
-            db.addStory(story.title, story.link, id)
-          cursor.requery()
-          adapter.notifyDataSetChanged()
-        } catch {
-          case _ : UnknownHostException => showDialog(0)
-          case _ : SAXParseException => showDialog(1)
-          case _ : NotFeedException => showDialog(1)
-        } finally {
-          connection.disconnect()
-        }
+        addFeed(data.getStringExtra("url"))
       }
       case _ =>
     }
@@ -125,6 +110,36 @@ class NWSRFeeds extends ListActivity {
       }
       case _ => super.onContextItemSelected(item)
     }
+  }
+
+  def addFeed(base: String) {
+    val url = new URL(if (base.startsWith("http://") ||
+                          base.startsWith("https://")) base
+                      else "http://" + base)
+    val connection = url.openConnection().asInstanceOf[HttpURLConnection]
+    try {
+      val istream = connection.getInputStream()
+      val data = FeedData.parseFeed(istream)
+      // parseFeed might take a long time; feedback here?
+      // heck, this whole process (parsing, bayes filter, removing dupes) might
+      val id = db.addFeed(data.title, data.link)
+      for (story <- data.stories)
+        db.addStory(story.title, story.link, id)
+      cursor.requery()
+      adapter.notifyDataSetChanged()
+    } catch {
+      case _ : UnknownHostException => showDialog(0)
+      case _ : SAXParseException => showDialog(1)
+      case _ : NotFeedException => showDialog(1)
+    } finally {
+      connection.disconnect()
+    }
+  }
+
+  override def onResume() {
+    super.onResume()
+    cursor.requery()
+    adapter.notifyDataSetChanged()
   }
 
   override def onDestroy() {
