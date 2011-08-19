@@ -13,9 +13,8 @@ import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AdapterView
-import android.widget.BaseAdapter
+import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
 
@@ -29,27 +28,32 @@ import org.xml.sax.SAXParseException
 class NWSRFeeds extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
-  var adapter: FeedListAdapter = _
+  var adapter: SimpleCursorAdapter = _
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
-    setContentView(R.layout.feeds);
+    setContentView(R.layout.feeds)
+
+    val inflater = LayoutInflater.from(this)
+    val header = inflater.inflate(R.layout.button_add_feed, null)
+      .asInstanceOf[TextView]
+    getListView.addHeaderView(header)
+
+    val activity = this
+    val ocl = new View.OnClickListener() {
+      def onClick(v: View) {
+        startActivityForResult(new Intent(activity, classOf[NWSRAddFeed]), 0)
+      }
+    }
+    header.setOnClickListener(ocl)
+    findViewById(android.R.id.empty).setOnClickListener(ocl)
 
     db = new NWSRDatabase(this)
     cursor = db.feeds()
-    adapter = new FeedListAdapter(this, cursor)
+    adapter = new SimpleCursorAdapter(
+      this, R.layout.feed, cursor, Array("title", "link"),
+      Array(R.id.feed_title, R.id.feed_link))
     setListAdapter(adapter)
-
-    val activity = this
-    getListView.setOnItemClickListener(
-      new AdapterView.OnItemClickListener() {
-        def onItemClick(parent: AdapterView[_], view: View,
-                        position: Int, id: Long) {
-          if (position == 0)
-            startActivityForResult(
-              new Intent(activity, classOf[NWSRAddFeed]), 0)
-        }
-      })
     registerForContextMenu(getListView)
 
     if (getIntent.getAction == Intent.ACTION_VIEW) {
@@ -57,6 +61,22 @@ class NWSRFeeds extends ListActivity {
       //   filter; fixed in 2.2
       addFeed(getIntent.getDataString)
     }
+  }
+
+  override def onResume() {
+    super.onResume()
+    updateViews()
+  }
+
+  def updateViews() {
+    cursor.requery()
+    adapter.notifyDataSetChanged()
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    cursor.close()
+    db.close()
   }
 
   override def onActivityResult(request: Int, result: Int, data: Intent) {
@@ -87,7 +107,6 @@ class NWSRFeeds extends ListActivity {
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
-    // Not a good solution; still highlights the "add feed" item with long press
     super.onCreateContextMenu(menu, v, menuInfo)
     if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
       val inflater = getMenuInflater()
@@ -104,8 +123,7 @@ class NWSRFeeds extends ListActivity {
     item.getItemId() match {
       case R.id.delete => {
         db.deleteFeed(info.id)
-        cursor.requery()
-        adapter.notifyDataSetChanged()
+        updateViews()
         true
       }
       case _ => super.onContextItemSelected(item)
@@ -125,8 +143,7 @@ class NWSRFeeds extends ListActivity {
       val id = db.addFeed(data.title, data.link)
       for (story <- data.stories)
         db.addStory(story.title, story.link, id)
-      cursor.requery()
-      adapter.notifyDataSetChanged()
+      updateViews()
     } catch {
       case _ : UnknownHostException => showDialog(0)
       case _ : SAXParseException => showDialog(1)
@@ -134,18 +151,6 @@ class NWSRFeeds extends ListActivity {
     } finally {
       connection.disconnect()
     }
-  }
-
-  override def onResume() {
-    super.onResume()
-    cursor.requery()
-    adapter.notifyDataSetChanged()
-  }
-
-  override def onDestroy() {
-    super.onDestroy()
-    cursor.close()
-    db.close()
   }
 }
 
@@ -173,52 +178,4 @@ class NWSRAddFeed extends Activity {
         }
       })
   }
-}
-
-
-class FeedListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
-  val inflater = LayoutInflater.from(context)
-
-  case class FeedView(title: TextView, link: TextView)
-
-  override def getCount(): Int = cursor.getCount + 1
-
-  override def getItem(position: Int): Object = position match {
-    case 0 => null
-    case p => {
-      cursor.moveToPosition(p-1)
-      (cursor.getString(1), cursor.getString(2))
-    }
-  }
-
-  override def getItemId(position: Int): Long = position match {
-    case 0 => -1
-    case p => {
-      cursor.moveToPosition(p-1)
-      cursor.getLong(0)
-    }
-  }
-
-  override def getView(position: Int, convertView: View,
-                       parent: ViewGroup): View = position match {
-    case 0 => inflater.inflate(R.layout.button_add_feed, null)
-    case p => if (convertView == null || convertView.getTag == null) {
-      val view = inflater.inflate(R.layout.feed, null)
-      val fv = FeedView(
-        view.findViewById(R.id.feed_title).asInstanceOf[TextView],
-        view.findViewById(R.id.feed_link).asInstanceOf[TextView])
-      val text = getItem(position).asInstanceOf[Tuple2[String, String]]
-      fv.title.setText(text._1)
-      fv.link.setText(text._2)
-      view.setTag(fv)
-      view
-    } else {
-      val fv = convertView.getTag.asInstanceOf[FeedView]
-      val text = getItem(position).asInstanceOf[Tuple2[String, String]]
-      fv.title.setText(text._1)
-      fv.link.setText(text._2)
-      convertView
-    }
-  }
-
 }

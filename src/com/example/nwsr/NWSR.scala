@@ -22,7 +22,6 @@ class NWSR extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
-  var footer: TextView = _
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -31,7 +30,7 @@ class NWSR extends ListActivity {
     PreferenceManager.setDefaultValues(this, R.xml.settings, false)
 
     val inflater = LayoutInflater.from(this)
-    footer = inflater.inflate(R.layout.button_next_headline, null)
+    val footer = inflater.inflate(R.layout.button_next_headline, null)
       .asInstanceOf[TextView]
     getListView.addFooterView(footer)
     footer.setOnClickListener(new View.OnClickListener() {
@@ -57,6 +56,17 @@ class NWSR extends ListActivity {
   override def onResume() {
     super.onResume()
     updateViews()
+  }
+
+  def updateViews() {
+    cursor.requery()
+    adapter.notifyDataSetChanged()
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    cursor.close()
+    db.close()
   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -107,17 +117,6 @@ class NWSR extends ListActivity {
       }
       case _ => super.onContextItemSelected(item)
     }
-  }
-
-  def updateViews() {
-    cursor.requery()
-    adapter.notifyDataSetChanged()
-  }
-
-  override def onDestroy() {
-    super.onDestroy()
-    cursor.close()
-    db.close()
   }
 }
 

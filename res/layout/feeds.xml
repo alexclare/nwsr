@@ -9,10 +9,8 @@
      android:layout_width="fill_parent" 
      android:layout_height="wrap_content"
      />
-  <TextView
+  <include
      android:id="@android:id/empty"
-     android:layout_width="fill_parent" 
-     android:layout_height="wrap_content" 
-     android:text=" "
+     layout="@layout/button_add_feed"
      />
 </LinearLayout>
