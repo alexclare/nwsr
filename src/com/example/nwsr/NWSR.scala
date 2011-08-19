@@ -17,6 +17,8 @@ import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
+import scala.collection.mutable.ArrayBuilder
+
 
 class NWSR extends ListActivity {
   var db: NWSRDatabase = _
@@ -35,11 +37,13 @@ class NWSR extends ListActivity {
     getListView.addFooterView(footer)
     footer.setOnClickListener(new View.OnClickListener() {
       def onClick(v: View) {
+        val arr = ArrayBuilder.make[Long]
         cursor.moveToFirst()
         while (!cursor.isAfterLast) {
-          db.filterStory(cursor.getLong(0), false)
+          arr += cursor.getLong(0)
           cursor.moveToNext()
         }
+        db.filterStories(arr.result(), false)
         updateViews()
       }
     })
@@ -108,11 +112,12 @@ class NWSR extends ListActivity {
       case R.id.open_browser => {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
-        db.filterStory(info.id, true)
+        db.filterStories(Array(info.id), true)
+        // Temporarily disable opening in browser
         val intent = new Intent(Intent.ACTION_VIEW)
           .setData(Uri.parse(if (url.startsWith("http://")) url
                              else "http://" + url))
-        startActivity(intent)
+        //startActivity(intent)
         true
       }
       case _ => super.onContextItemSelected(item)

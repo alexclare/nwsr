@@ -101,9 +101,13 @@ class NWSRDatabase (context: Context) {
     "two","how","our","work","first","well","way","even","new","want",
     "because","any","these","give","day","most")
 
+  def titleWords(title: String) = punctuation.replaceAllIn(title, " ")
+    .toLowerCase().split(' ')
+    .filter((word) => word.length > 2 && !commonWords.contains(word))
+
   def classifyStory(title: String): (Double, Double) = {
     val posHeadlines = prefs.getLong("positive_headline_count", 0)
-    val negHeadlines = prefs.getLong("negative_headline_count", 0)
+    val negHeadlines = prefs.getLong("negative_headline_count", 1)
     val totHeadlines: Double = posHeadlines + negHeadlines
     val totWords = {
       val cWord = db.rawQuery("select count(*) from word", Array.empty[String])
@@ -113,14 +117,10 @@ class NWSRDatabase (context: Context) {
       result
     }
     val posDenom: Double = 1.0/(prefs.getLong("positive_word_count", 0) + totWords)
-    val negDenom: Double = 1.0/(prefs.getLong("negative_word_count", 0) + totWords)
+    val negDenom: Double = 1.0/(prefs.getLong("negative_word_count", 1) + totWords)
     var positive: Double = posHeadlines / totHeadlines
     var negative: Double = negHeadlines / totHeadlines
-    for {
-      word <- punctuation.replaceAllIn(title, " ")
-        .toLowerCase().split(' ') 
-      if word.length > 2 && !commonWords.contains(word)
-    } {
+    for (word <- titleWords(title)) {
       val cWord = db.query(
         "word", Array("positive", "negative"),
         "repr = ?", Array(word), null, null, null)
@@ -134,34 +134,45 @@ class NWSRDatabase (context: Context) {
     (positive, negative)
   }
 
-  def filterStory(id: Long, positive: Boolean) {
-    val cStory = db.query("story", Array("title"), "_id = ?",
-                         Array(id.toString), null, null, null)
-    cStory.moveToFirst()
-    val editor = prefs.edit()
-    val countKey = if (positive) "positive_headline_count"
-                   else "negative_headline_count"
-    editor.putLong(countKey, prefs.getLong(countKey, 0) + 1)
-    val words = HashMap.empty[String, Int]
-    for {
-      word <- punctuation.replaceAllIn(cStory.getString(0), " ")
-        .toLowerCase().split(' ') 
-      if word.length > 2 && !commonWords.contains(word)
-    } {
-      if (words.contains(word))
-        words(word) = words(word) + 1
-      else words(word) = 1
+
+  def foreach(cursor: Cursor)(fn: (Cursor => Unit)) {
+    cursor.moveToFirst()
+    while (!cursor.isAfterLast) {
+      fn(cursor)
+      cursor.moveToNext()
     }
+  }
+
+  def filterStories(ids: Array[Long], positive: Boolean) {
+    val editor = prefs.edit()
+    val words = new HashMap[String, Int]() {
+      override def default(key: String): Int = 0
+    }
+    val idString = ids.mkString(", ")
+    val curStories = db.query("story", Array("title"), "_id in (?)",
+                              Array(idString), null, null, null)
+    foreach(curStories) {
+      (story: Cursor) =>
+        for (word <- titleWords(story.getString(0))) {
+          words(word) = words(word) + 1
+        }
+    }
+    curStories.close()
+
+    val vocabKey = if (positive) "positive_word_count"
+                   else "negative_word_count"
+    var vocab = prefs.getLong(vocabKey, 0)
     for (word <- words.keySet) {
-      val cWord = db.query(
+      val curWord = db.query(
         "word", Array("_id", if (positive) "positive" else "negative"),
         "repr = ?", Array(word), null, null, null)
-      if (cWord.getCount > 0) {
-        cWord.moveToFirst()
+      if (curWord.getCount > 0) {
+        curWord.moveToFirst()
         val values = new ContentValues()
         values.put(if (positive) "positive" else "negative", 
-                   java.lang.Long.valueOf(cWord.getLong(1) + words(word)))
-        db.update("word", values, "_id = ?", Array(cWord.getLong(0).toString))
+                   java.lang.Long.valueOf(curWord.getLong(1) + words(word)))
+        db.update("word", values, "_id = ?",
+                  Array(curWord.getLong(0).toString))
       } else {
         val values = new ContentValues()
         values.put("repr", word)
@@ -170,20 +181,19 @@ class NWSRDatabase (context: Context) {
         values.put(if (positive) "negative" else "positive",
                    java.lang.Long.valueOf(0))
         db.insert("word", null, values)
-        val vocabKey = if (positive) "positive_word_count"
-                       else "negative_word_count"
-        editor.putLong(vocabKey, prefs.getLong(vocabKey, 0) + 1)
+        vocab += 1
       }
-      cWord.close()
+      curWord.close()
     }
-    editor.commit()
-    cStory.close()
-    db.delete("story", "_id = " + id, null)
-  }
 
-  def stories(): Cursor = db.query(
-    "story", Array("_id", "title", "link"), null, null, null,
-    null, "weight desc", "20")
+    editor.putLong(vocabKey, vocab)
+    val headlineKey = if (positive) "positive_headline_count"
+                      else "negative_headline_count"
+    editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
+    editor.commit()
+
+    db.execSQL("delete from story where _id in (" + idString + ")")
+  }
 
   def close() {
     helper.close()

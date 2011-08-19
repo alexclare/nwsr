@@ -10,7 +10,7 @@ import org.w3c.dom.NodeList
 
 
 object XmlUtils {
-  def foreach(list: NodeList)(fn:(Node => Unit)) {
+  def foreach(list: NodeList)(fn: (Node => Unit)) {
     for (x <- 0 until list.getLength; node = list.item(x))
       fn(node)
   }
