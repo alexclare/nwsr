@@ -13,19 +13,16 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AdapterView
-import android.widget.BaseAdapter
+import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
-import android.widget.CursorAdapter
 
-// Move all database management (i.e. cursor stuff) to the Adapter class?
 class NWSR extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
-  var adapter: HeadlineListAdapter = _
-  //val footer: TextView = _
+  var adapter: SimpleCursorAdapter = _
+  var footer: TextView = _
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -33,37 +30,33 @@ class NWSR extends ListActivity {
     setContentView(R.layout.headlines)
     PreferenceManager.setDefaultValues(this, R.xml.settings, false)
 
-    /*
     val inflater = LayoutInflater.from(this)
-    footer = inflater.inflate(R.layout.button_next_headline, getListView)
-    */
+    footer = inflater.inflate(R.layout.button_next_headline, null)
+      .asInstanceOf[TextView]
+    getListView.addFooterView(footer)
+    footer.setOnClickListener(new View.OnClickListener() {
+      def onClick(v: View) {
+        cursor.moveToFirst()
+        while (!cursor.isAfterLast) {
+          db.filterStory(cursor.getLong(0), false)
+          cursor.moveToNext()
+        }
+        updateViews()
+      }
+    })
 
     db = new NWSRDatabase(this)
     cursor = db.stories()
-    adapter = new HeadlineListAdapter(this, cursor)
+    adapter = new SimpleCursorAdapter(
+      this, R.layout.headline, cursor, Array("title", "link"),
+      Array(R.id.headline_title,R.id.headline_link))
     setListAdapter(adapter)
     registerForContextMenu(getListView)
-    getListView.setOnItemClickListener(
-      new AdapterView.OnItemClickListener() {
-        def onItemClick(parent: AdapterView[_], view: View,
-                        position: Int, id: Long) {
-          if (id < 0) {
-            cursor.moveToFirst()
-            while (!cursor.isAfterLast) {
-              db.filterStory(cursor.getLong(0), false)
-              cursor.moveToNext()
-            }
-            cursor.requery()
-            adapter.notifyDataSetChanged()
-          }
-        }
-      })
   }
 
   override def onResume() {
     super.onResume()
-    cursor.requery()
-    adapter.notifyDataSetChanged()
+    updateViews()
   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -88,7 +81,6 @@ class NWSR extends ListActivity {
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
-    // Not a good solution; still highlights excluded items with long press
     super.onCreateContextMenu(menu, v, menuInfo)
     if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
       val inflater = getMenuInflater()
@@ -117,6 +109,11 @@ class NWSR extends ListActivity {
     }
   }
 
+  def updateViews() {
+    cursor.requery()
+    adapter.notifyDataSetChanged()
+  }
+
   override def onDestroy() {
     super.onDestroy()
     cursor.close()
@@ -124,52 +121,6 @@ class NWSR extends ListActivity {
   }
 }
 
-class HeadlineListAdapter (context: Context, cursor: Cursor) extends BaseAdapter {
-  val inflater = LayoutInflater.from(context)
-
-  case class HeadlineView(title: TextView, link: TextView)
-
-  override def getCount(): Int = {
-    val cCount = cursor.getCount
-    if (cCount == 0) 0 else (1 + cCount)
-  }
-
-  override def getItem(position: Int): Object = {
-    if (cursor.moveToPosition(position))
-      (cursor.getString(1), cursor.getString(2))
-    else null
-  }
-
-  override def getItemId(position: Int): Long = {
-    if (cursor.moveToPosition(position))
-      cursor.getLong(0)
-    else -1
-  }
-
-  override def getView(position: Int, convertView: View,
-                       parent: ViewGroup): View = {
-    if (position >= cursor.getCount) {
-      inflater.inflate(R.layout.button_next_headline, null)
-    } else if (convertView == null || convertView.getTag == null) {
-      val view = inflater.inflate(R.layout.headline, null)
-      val hv = HeadlineView(
-        view.findViewById(R.id.headline_title).asInstanceOf[TextView],
-        view.findViewById(R.id.headline_link).asInstanceOf[TextView])
-      val text = getItem(position).asInstanceOf[Tuple2[String,String]]
-      hv.title.setText(text._1)
-      hv.link.setText(text._2)
-      view.setTag(hv)
-      view
-    } else {
-      val hv = convertView.getTag.asInstanceOf[HeadlineView]
-      val text = getItem(position).asInstanceOf[Tuple2[String,String]]
-      hv.title.setText(text._1)
-      hv.link.setText(text._2)
-      convertView
-    }
-  }
-
-}
 
 class NWSRSettings extends PreferenceActivity {
   override def onCreate(savedInstanceState: Bundle) {
@@ -177,4 +128,3 @@ class NWSRSettings extends PreferenceActivity {
     addPreferencesFromResource(R.xml.settings);
   }
 }
-
