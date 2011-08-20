@@ -35,6 +35,7 @@ class NWSR extends ListActivity {
     val footer = inflater.inflate(R.layout.button_next_headline, null)
       .asInstanceOf[TextView]
     getListView.addFooterView(footer)
+    val activity = this
     footer.setOnClickListener(new View.OnClickListener() {
       def onClick(v: View) {
         val arr = ArrayBuilder.make[Long]
@@ -45,14 +46,15 @@ class NWSR extends ListActivity {
         }
         db.filterStories(arr.result(), false)
         updateViews()
+        activity.getListView.setSelectionAfterHeaderView()
       }
     })
 
     db = new NWSRDatabase(this)
     cursor = db.stories()
     adapter = new SimpleCursorAdapter(
-      this, R.layout.headline, cursor, Array("title", "link"),
-      Array(R.id.headline_title,R.id.headline_link))
+      this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
+      Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
     setListAdapter(adapter)
     registerForContextMenu(getListView)
   }

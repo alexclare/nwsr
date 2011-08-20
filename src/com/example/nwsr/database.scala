@@ -19,6 +19,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                        "title string, " +
                        "link string, " +
                        "weight real, " +
+                       "pos real, neg real, " +
                        "updated integer, " +
                        "feed integer references feed" +
                        ");")
@@ -72,8 +73,13 @@ class NWSRDatabase (context: Context) {
 
   def deleteFeed(id: Long) {
     db.delete("feed", "_id = " + id, null)
+    // Deleting the story here might conflict with the bloom filter idea
     db.delete("story", "feed = " + id, null)
   }
+
+  def stories(): Cursor = db.query(
+    "story", Array("_id", "title", "link", "pos", "neg"), null, null, null,
+    null, "weight desc", "20")
 
   def addStory(title: String, link: String, id: Long) = {
     // Bloom filter to determine whether or not story is a dupe
@@ -82,8 +88,12 @@ class NWSRDatabase (context: Context) {
     values.put("title", title)
     // Assume http, https links remain as they are
     values.put("link", link.stripPrefix("http://"))
+    values.put("weight", rng.nextDouble())
+
     val cf = classifyStory(title)
-    values.put("weight", pow(rng.nextDouble(), cf._2/(cf._1+cf._2)))
+    values.put("pos", cf._1/(cf._1+cf._2))
+    values.put("neg", cf._2/(cf._1+cf._2))
+    // weight here
     values.put("updated", java.lang.Long.valueOf(now))
     values.put("feed", java.lang.Long.valueOf(id))
 
