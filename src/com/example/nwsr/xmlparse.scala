@@ -81,7 +81,7 @@ object FeedData {
       .newDocumentBuilder.parse(input)
     val root = doc.getDocumentElement
     val feedType = root.getTagName match {
-      case "rss" => RSSFeed
+      case ("rss"|"rdf:RDF") => RSSFeed
       case "feed" => AtomFeed
       case _ => throw new NotFeedException()
     }
