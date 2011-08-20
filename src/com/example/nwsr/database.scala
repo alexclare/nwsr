@@ -59,7 +59,8 @@ class NWSRDatabase (context: Context) {
   def feeds(): Cursor = db.query("feed", Array("_id", "title", "link"),
                                  null, null, null, null, "title asc")
 
-  def addFeed(title: String, link: String) = {
+  def addFeed(title: String, link: String, etag: Option[String],
+              lastModified: Option[String]) = {
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis/1000
     values.put("title", title)
@@ -68,6 +69,14 @@ class NWSRDatabase (context: Context) {
     // This won't compile with the long value in Scala
     values.put("updated", java.lang.Long.valueOf(now))
 
+    etag match {
+      case Some(e) => values.put("etag", e)
+      case None =>
+    }
+    lastModified match {
+      case Some(lm) => values.put("last_modified", lm)
+      case None =>
+    }
     db.insert("feed", null, values)
   }
 
@@ -111,14 +120,14 @@ class NWSRDatabase (context: Context) {
     "two","how","our","work","first","well","way","even","new","want",
     "because","any","these","give","day","most")
 
-  def titleWords(title: String) = punctuation.replaceAllIn(title, " ")
+  def normalizeWords(title: String) = punctuation.replaceAllIn(title, " ")
     .toLowerCase().split(' ')
     .filter((word) => word.length > 2 && !commonWords.contains(word))
 
   def classifyStory(title: String): (Double, Double) = {
-    val posHeadlines = prefs.getLong("positive_headline_count", 0)
-    val negHeadlines = prefs.getLong("negative_headline_count", 1)
-    val totHeadlines: Double = posHeadlines + negHeadlines
+    val posDocs = prefs.getLong("positive_headline_count", 0)
+    val negDocs = prefs.getLong("negative_headline_count", 0)
+    val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
     val totWords = {
       val cWord = db.rawQuery("select count(*) from word", Array.empty[String])
       cWord.moveToFirst()
@@ -126,24 +135,25 @@ class NWSRDatabase (context: Context) {
       cWord.close()
       result
     }
-    val posDenom: Double = 1.0/(prefs.getLong("positive_word_count", 0) + totWords)
-    val negDenom: Double = 1.0/(prefs.getLong("negative_word_count", 1) + totWords)
-    var positive: Double = posHeadlines / totHeadlines
-    var negative: Double = negHeadlines / totHeadlines
-    for (word <- titleWords(title)) {
+    val posDenom: Double = (
+      prefs.getLong("positive_word_count", 0) + totWords).toDouble max 1.0
+    val negDenom: Double = (
+      prefs.getLong("negative_word_count", 0) + totWords).toDouble max 1.0
+    var positive: Double = posDocs / totDocs
+    var negative: Double = negDocs / totDocs
+    for (word <- normalizeWords(title)) {
       val cWord = db.query(
         "word", Array("positive", "negative"),
         "repr = ?", Array(word), null, null, null)
       if (cWord.getCount > 0) {
         cWord.moveToFirst()
-        positive = positive * posDenom * (cWord.getLong(0) + 1)
-        negative = negative * negDenom * (cWord.getLong(1) + 1)
+        positive *= ((cWord.getLong(0) + 1)/posDenom)
+        negative *= ((cWord.getLong(1) + 1)/negDenom)
       }
       cWord.close()
     }
     (positive, negative)
   }
-
 
   def foreach(cursor: Cursor)(fn: (Cursor => Unit)) {
     cursor.moveToFirst()
@@ -163,7 +173,7 @@ class NWSRDatabase (context: Context) {
                               Array(idString), null, null, null)
     foreach(curStories) {
       (story: Cursor) =>
-        for (word <- titleWords(story.getString(0))) {
+        for (word <- normalizeWords(story.getString(0))) {
           words(word) = words(word) + 1
         }
     }

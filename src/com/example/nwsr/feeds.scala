@@ -140,7 +140,7 @@ class NWSRFeeds extends ListActivity {
       val data = FeedData.parseFeed(istream)
       // parseFeed might take a long time; feedback here?
       // heck, this whole process (parsing, bayes filter, removing dupes) might
-      val id = db.addFeed(data.title, data.link)
+      val id = db.addFeed(data.title, data.link, None, None)
       for (story <- data.stories)
         db.addStory(story.title, story.link, id)
       updateViews()
