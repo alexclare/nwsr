@@ -38,25 +38,27 @@ class NWSR extends ListActivity {
     val activity = this
     footer.setOnClickListener(new View.OnClickListener() {
       def onClick(v: View) {
-        val arr = ArrayBuilder.make[Long]
-        cursor.moveToFirst()
-        while (!cursor.isAfterLast) {
-          arr += cursor.getLong(0)
-          cursor.moveToNext()
-        }
-        db.filterStories(arr.result(), false)
+        db.filterStories({
+          val arr = ArrayBuilder.make[Long]
+          cursor.moveToFirst()
+          while (!cursor.isAfterLast) {
+            arr += cursor.getLong(0)
+            cursor.moveToNext()
+          }
+          arr.result()
+        }, false)
         updateViews()
         activity.getListView.setSelectionAfterHeaderView()
       }
     })
 
-    db = new NWSRDatabase(this)
+    registerForContextMenu(getListView)    
+    db = new NWSRDatabase(this).open()
     cursor = db.stories()
     adapter = new SimpleCursorAdapter(
       this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
       Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
     setListAdapter(adapter)
-    registerForContextMenu(getListView)
   }
 
   override def onResume() {
@@ -83,7 +85,10 @@ class NWSR extends ListActivity {
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = 
     item.getItemId() match {
-      case R.id.refresh => true
+      case R.id.refresh => {
+//        db.refreshFeeds()
+        true
+      }
       case R.id.feeds => {
         startActivity(new Intent(this, classOf[NWSRFeeds]))
         true

@@ -48,13 +48,14 @@ class NWSRFeeds extends ListActivity {
     header.setOnClickListener(ocl)
     findViewById(android.R.id.empty).setOnClickListener(ocl)
 
-    db = new NWSRDatabase(this)
+    registerForContextMenu(getListView)
+
+    db = new NWSRDatabase(this).open()
     cursor = db.feeds()
     adapter = new SimpleCursorAdapter(
-      this, R.layout.feed, cursor, Array("title", "link"),
+      this, R.layout.feed, cursor, Array("title", "display_link"),
       Array(R.id.feed_title, R.id.feed_link))
     setListAdapter(adapter)
-    registerForContextMenu(getListView)
 
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
@@ -137,10 +138,15 @@ class NWSRFeeds extends ListActivity {
     val connection = url.openConnection().asInstanceOf[HttpURLConnection]
     try {
       val istream = connection.getInputStream()
+      val etag = connection.getHeaderField("ETag")
+      val lastModified = connection.getHeaderField("Last-Modified")
       val data = FeedData.parseFeed(istream)
       // parseFeed might take a long time; feedback here?
       // heck, this whole process (parsing, bayes filter, removing dupes) might
-      val id = db.addFeed(data.title, data.link, None, None)
+      val id = db.addFeed(
+        data.title, connection.getURL.toString, data.link,
+        if (etag == null) None else Some(etag),
+        if (lastModified == null) None else Some(lastModified))
       for (story <- data.stories)
         db.addStory(story.title, story.link, id)
       updateViews()

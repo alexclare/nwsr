@@ -28,6 +28,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                      "_id integer primary key, " +
                      "title string, " +
                      "link string, " +
+                     "display_link string," +
                      "updated integer, " +
                      "etag string, " +
                      "last_modified string" +
@@ -51,20 +52,27 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
 }
 
 class NWSRDatabase (context: Context) {
-  var helper: NWSRDatabaseHelper = new NWSRDatabaseHelper(context)
-  var db: SQLiteDatabase = helper.getWritableDatabase()
+  var helper: NWSRDatabaseHelper = _
+  var db: SQLiteDatabase = _
   val rng: Random = new Random()
   val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
-  def feeds(): Cursor = db.query("feed", Array("_id", "title", "link"),
+  def open(): NWSRDatabase = {
+    helper = new NWSRDatabaseHelper(context)
+    db = helper.getWritableDatabase()
+    this
+  }
+
+  def feeds(): Cursor = db.query("feed", Array("_id", "title", "display_link"),
                                  null, null, null, null, "title asc")
 
-  def addFeed(title: String, link: String, etag: Option[String],
-              lastModified: Option[String]) = {
+  def addFeed(title: String, link: String, displayLink: String,
+              etag: Option[String], lastModified: Option[String]) = {
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis/1000
     values.put("title", title)
     values.put("link", link)
+    values.put("display_link", displayLink)
 
     // This won't compile with the long value in Scala
     values.put("updated", java.lang.Long.valueOf(now))
@@ -85,7 +93,20 @@ class NWSRDatabase (context: Context) {
     // Deleting the story here might conflict with the bloom filter idea
     db.delete("story", "feed = " + id, null)
   }
+/*
+  def refreshFeeds() {
+    // give it every id
+    val curFeeds = db.query("feed", Array("_id"), null, null, null, null, null)
+    foreach(curFeeds) {
+      refreshFeed(curFeeds.getLong(0))
+    }
+    curFeeds.close()
+  }
 
+  def refreshFeeds(ids: Array[Long]) {
+    val curFeeds = db.query("feed", Array("_id"), null, null, null, null, null)
+  }
+*/
   def stories(): Cursor = db.query(
     "story", Array("_id", "title", "link", "pos", "neg"), null, null, null,
     null, "weight desc", "20")
@@ -169,8 +190,9 @@ class NWSRDatabase (context: Context) {
       override def default(key: String): Int = 0
     }
     val idString = ids.mkString(", ")
-    val curStories = db.query("story", Array("title"), "_id in (?)",
-                              Array(idString), null, null, null)
+    val curStories = db.rawQuery(
+      "select title from story where _id in (" + idString + ")",
+      Array.empty[String])
     foreach(curStories) {
       (story: Cursor) =>
         for (word <- normalizeWords(story.getString(0))) {
@@ -186,15 +208,14 @@ class NWSRDatabase (context: Context) {
       val curWord = db.query(
         "word", Array("_id", if (positive) "positive" else "negative"),
         "repr = ?", Array(word), null, null, null)
+      val values = new ContentValues()
       if (curWord.getCount > 0) {
         curWord.moveToFirst()
-        val values = new ContentValues()
         values.put(if (positive) "positive" else "negative", 
                    java.lang.Long.valueOf(curWord.getLong(1) + words(word)))
         db.update("word", values, "_id = ?",
                   Array(curWord.getLong(0).toString))
       } else {
-        val values = new ContentValues()
         values.put("repr", word)
         values.put(if (positive) "positive" else "negative",
                    java.lang.Long.valueOf(words(word)))
