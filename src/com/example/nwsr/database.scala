@@ -11,8 +11,12 @@ import scala.collection.mutable.HashMap
 import scala.math.pow
 import scala.util.Random
 
-class NWSRDatabaseHelper (val context: Context)
-extends SQLiteOpenHelper (context, "NWSR", null, 1) {
+// The ContentValues.put functions seem to require "java.lang.Type.valueOf"
+//   calls to appease the type checker
+
+object NWSRDatabaseHelper {
+  val name = "nwsr.db"
+  val version = 1
 
   val createStories = ("create table story (" +
                        "_id integer primary key, " +
@@ -21,8 +25,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                        "weight real, " +
                        "pos real, neg real, " +
                        "updated integer, " +
-                       "feed integer references feed" +
-                       ");")
+                       "feed integer references feed);")
 
   val createFeeds = ("create table feed (" +
                      "_id integer primary key, " +
@@ -31,8 +34,7 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                      "display_link string," +
                      "updated integer, " +
                      "etag string, " +
-                     "last_modified string" +
-                     ");")
+                     "last_modified string);")
 
   val createWords = ("create table word (" +
                     "_id integer primary key, " +
@@ -40,10 +42,21 @@ extends SQLiteOpenHelper (context, "NWSR", null, 1) {
                     "positive integer, " +
                     "negative integer);")
 
+  val createSeen = ("create table seen (" +
+                    "title integer primary key, " +
+                    "updated integer);")
+}
+
+class NWSRDatabaseHelper (val context: Context)
+extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
+                          NWSRDatabaseHelper.version) {
+  import NWSRDatabaseHelper._
+
   override def onCreate(db: SQLiteDatabase) {
     db.execSQL(createStories)
     db.execSQL(createFeeds)
     db.execSQL(createWords)
+    db.execSQL(createSeen)
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
@@ -73,8 +86,6 @@ class NWSRDatabase (context: Context) {
     values.put("title", title)
     values.put("link", link)
     values.put("display_link", displayLink)
-
-    // This won't compile with the long value in Scala
     values.put("updated", java.lang.Long.valueOf(now))
 
     etag match {
@@ -112,22 +123,34 @@ class NWSRDatabase (context: Context) {
     null, "weight desc", "20")
 
   def addStory(title: String, link: String, id: Long) = {
-    // Bloom filter to determine whether or not story is a dupe
-    val values = new ContentValues()
-    val now: Long = System.currentTimeMillis/1000
-    values.put("title", title)
-    // Assume http, https links remain as they are
-    values.put("link", link.stripPrefix("http://"))
-    values.put("weight", rng.nextDouble())
+    val cur = db.rawQuery(
+      "select 1 where exists (select null from seen where title = %d)"
+      .format(title.hashCode()),
+      Array.empty[String])
+    if (cur.getCount <= 0) {
+      val story = new ContentValues()
+      val seen = new ContentValues()
+      val now: Long = System.currentTimeMillis/1000
+      story.put("title", title)
+      seen.put("title", java.lang.Integer.valueOf(title.hashCode()))
 
-    val cf = classifyStory(title)
-    values.put("pos", cf._1/(cf._1+cf._2))
-    values.put("neg", cf._2/(cf._1+cf._2))
-    // weight here
-    values.put("updated", java.lang.Long.valueOf(now))
-    values.put("feed", java.lang.Long.valueOf(id))
+      // Assume http, https links remain as they are
+      story.put("link", link.stripPrefix("http://"))
 
-    db.insert("story", null, values)
+      story.put("weight", rng.nextDouble())
+      // real weighting algorithm here
+      val cf = classifyStory(title)
+      story.put("pos", cf._1/(cf._1+cf._2))
+      story.put("neg", cf._2/(cf._1+cf._2))
+
+      story.put("updated", java.lang.Long.valueOf(now))
+      seen.put("updated", java.lang.Long.valueOf(now))
+      story.put("feed", java.lang.Long.valueOf(id))
+
+      db.insert("story", null, story)
+      db.insert("seen", null, seen) 
+    }
+    cur.close()
   }
 
   val punctuation = "\\p{Punct}+".r
@@ -156,10 +179,22 @@ class NWSRDatabase (context: Context) {
       cWord.close()
       result
     }
-    val posDenom: Double = (
-      prefs.getLong("positive_word_count", 0) + totWords).toDouble max 1.0
-    val negDenom: Double = (
-      prefs.getLong("negative_word_count", 0) + totWords).toDouble max 1.0
+    val posDenom: Double = {
+      val cWord = db.rawQuery(
+        "select count(*) from word where positive > 0", Array.empty[String])
+      cWord.moveToFirst()
+      val result = cWord.getLong(0)
+      cWord.close()
+      (result + totWords).toDouble
+    }
+    val negDenom: Double = {
+      val cWord = db.rawQuery(
+        "select count(*) from word where negative > 0", Array.empty[String])
+      cWord.moveToFirst()
+      val result = cWord.getLong(0)
+      cWord.close()
+      (result + totWords).toDouble
+    }
     var positive: Double = posDocs / totDocs
     var negative: Double = negDocs / totDocs
     for (word <- normalizeWords(title)) {
@@ -201,9 +236,6 @@ class NWSRDatabase (context: Context) {
     }
     curStories.close()
 
-    val vocabKey = if (positive) "positive_word_count"
-                   else "negative_word_count"
-    var vocab = prefs.getLong(vocabKey, 0)
     for (word <- words.keySet) {
       val curWord = db.query(
         "word", Array("_id", if (positive) "positive" else "negative"),
@@ -216,18 +248,16 @@ class NWSRDatabase (context: Context) {
         db.update("word", values, "_id = ?",
                   Array(curWord.getLong(0).toString))
       } else {
-        values.put("repr", word)
+        values.put("repr", word) // truncates leading 0s on numbers!
         values.put(if (positive) "positive" else "negative",
                    java.lang.Long.valueOf(words(word)))
         values.put(if (positive) "negative" else "positive",
                    java.lang.Long.valueOf(0))
         db.insert("word", null, values)
-        vocab += 1
       }
       curWord.close()
     }
 
-    editor.putLong(vocabKey, vocab)
     val headlineKey = if (positive) "positive_headline_count"
                       else "negative_headline_count"
     editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
