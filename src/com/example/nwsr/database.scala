@@ -79,20 +79,19 @@ class NWSRDatabase (context: Context) {
   def feeds(): Cursor = db.query("feed", Array("_id", "title", "display_link"),
                                  null, null, null, null, "title asc")
 
-  def addFeed(title: String, link: String, displayLink: String,
-              etag: Option[String], lastModified: Option[String]) = {
+  def addFeed(feed: Feed): Long = {
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis/1000
-    values.put("title", title)
-    values.put("link", link)
-    values.put("display_link", displayLink)
+    values.put("title", feed.title)
+    values.put("link", feed.link)
+    values.put("display_link", feed.displayLink)
     values.put("updated", java.lang.Long.valueOf(now))
 
-    etag match {
+    feed.etag match {
       case Some(e) => values.put("etag", e)
       case None =>
     }
-    lastModified match {
+    feed.lastModified match {
       case Some(lm) => values.put("last_modified", lm)
       case None =>
     }
@@ -101,51 +100,55 @@ class NWSRDatabase (context: Context) {
 
   def deleteFeed(id: Long) {
     db.delete("feed", "_id = " + id, null)
-    // Deleting the story here might conflict with the bloom filter idea
     db.delete("story", "feed = " + id, null)
   }
 /*
-  def refreshFeeds() {
-    // give it every id
-    val curFeeds = db.query("feed", Array("_id"), null, null, null, null, null)
-    foreach(curFeeds) {
-      refreshFeed(curFeeds.getLong(0))
-    }
-    curFeeds.close()
-  }
-
   def refreshFeeds(ids: Array[Long]) {
-    val curFeeds = db.query("feed", Array("_id"), null, null, null, null, null)
+    val idString = ids.mkString(", ")    
+    Query.foreach(
+      "select link, etag, last_modified from feed where _id in (%s)"
+      .format(idString)) {
+        (c: Cursor) =>
+          // move the add/refresh functions to a dedicated class outside of the activity
+      }
   }
 */
+  def purgeOld() {
+    //val weekAgo: Long = System.currentTimeMillis/1000 - 604800
+    // set to 10 minutes for testing purposes
+    val weekAgo: Long = System.currentTimeMillis/1000 - 600
+    db.execSQL("delete from story where updated < %d".format(weekAgo))
+    db.execSQL("delete from seen where updated < %d".format(weekAgo))
+  }
+
   def stories(): Cursor = db.query(
     "story", Array("_id", "title", "link", "pos", "neg"), null, null, null,
     null, "weight desc", "20")
 
-  def addStory(title: String, link: String, id: Long) = {
+  def addStory(story: Story, id: Long) {
     Query.conditional(
       "select 1 where exists (select null from seen where title = %d)"
-      .format(title.hashCode())) () { () =>
-        val story = new ContentValues()
+      .format(story.title.hashCode())) () { () =>
+        val values = new ContentValues()
         val seen = new ContentValues()
         val now: Long = System.currentTimeMillis/1000
-        story.put("title", title)
-        seen.put("title", java.lang.Integer.valueOf(title.hashCode()))
+        values.put("title", story.title)
+        seen.put("title", java.lang.Integer.valueOf(story.title.hashCode()))
 
         // Assume http, https links remain as they are
-        story.put("link", link.stripPrefix("http://"))
+        values.put("link", story.link.stripPrefix("http://"))
 
-        story.put("weight", rng.nextDouble())
+        values.put("weight", rng.nextDouble())
         // real weighting algorithm here
-        val cf = classifyStory(title)
-        story.put("pos", cf._1/(cf._1+cf._2))
-        story.put("neg", cf._2/(cf._1+cf._2))
+        val cf = classifyStory(story.title)
+        values.put("pos", cf._1/(cf._1+cf._2))
+        values.put("neg", cf._2/(cf._1+cf._2))
 
-        story.put("updated", java.lang.Long.valueOf(now))
+        values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))
-        story.put("feed", java.lang.Long.valueOf(id))
+        values.put("feed", java.lang.Long.valueOf(id))
 
-        db.insert("story", null, story)
+        db.insert("story", null, values)
         db.insert("seen", null, seen) 
       }
   }

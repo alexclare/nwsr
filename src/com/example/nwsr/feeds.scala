@@ -18,8 +18,6 @@ import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
 
-import java.net.URL
-import java.net.HttpURLConnection
 import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
@@ -132,31 +130,20 @@ class NWSRFeeds extends ListActivity {
   }
 
   def addFeed(base: String) {
-    val url = new URL(if (base.startsWith("http://") ||
-                          base.startsWith("https://")) base
-                      else "http://" + base)
-    val connection = url.openConnection().asInstanceOf[HttpURLConnection]
     try {
-      val istream = connection.getInputStream()
-      val etag = connection.getHeaderField("ETag")
-      val lastModified = connection.getHeaderField("Last-Modified")
-      val data = FeedData.parseFeed(istream)
+      val feed = Feed.retrieve(base)
       // parseFeed might take a long time; feedback here?
       // heck, this whole process (parsing, bayes filter, removing dupes) might
-      val id = db.addFeed(
-        data.title, connection.getURL.toString, data.link,
-        if (etag == null) None else Some(etag),
-        if (lastModified == null) None else Some(lastModified))
-      for (story <- data.stories)
-        db.addStory(story.title, story.link, id)
-      updateViews()
+      val id = db.addFeed(feed)
+      for (story <- feed.stories) {
+        db.addStory(story, id)
+      }
     } catch {
       case _ : UnknownHostException => showDialog(0)
       case _ : SAXParseException => showDialog(1)
       case _ : NotFeedException => showDialog(1)
-    } finally {
-      connection.disconnect()
     }
+    updateViews()
   }
 }
 

@@ -87,6 +87,8 @@ class NWSR extends ListActivity {
     item.getItemId() match {
       case R.id.refresh => {
 //        db.refreshFeeds()
+        db.purgeOld()
+        updateViews()
         true
       }
       case R.id.feeds => {

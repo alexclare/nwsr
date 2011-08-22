@@ -1,47 +1,81 @@
 package com.example.nwsr
 
 import scala.collection.mutable.StringBuilder
+import scala.collection.mutable.ListBuffer
 
 import java.io.InputStream
+import java.net.URL
+import java.net.HttpURLConnection
 import javax.xml.parsers.DocumentBuilderFactory
 
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 
 
-object XmlUtils {
-  def foreach(list: NodeList)(fn: (Node => Unit)) {
-    for (x <- 0 until list.getLength; node = list.item(x))
-      fn(node)
+object Feed {
+  def retrieve(link: String): Feed = refresh(link, None, None)
+
+  def refresh(link: String, etag: Option[String],
+              lastModified: Option[String]): Feed = {
+    val url = new URL(if (link.startsWith("http://") ||
+                          link.startsWith("https://")) link
+                      else "http://" + link)
+    val connection = url.openConnection().asInstanceOf[HttpURLConnection]
+    etag match {
+      case Some(e) => connection.setRequestProperty("If-None-Match", e)
+      case None =>
+    }
+    lastModified match {
+      case Some(l) => connection.setRequestProperty("If-Modified-Since", l)
+      case None =>
+    }
+    try {
+      val istream = connection.getInputStream()
+      val etag = connection.getHeaderField("ETag")
+      val lastModified = connection.getHeaderField("Last-Modified")
+      val data = FeedParse.parseFeed(istream)
+      Feed(data.title, connection.getURL.toString, data.link,
+           if (etag == null) None else Some(etag),
+           if (lastModified == null) None else Some(lastModified),
+           data.stories.result())
+    } finally {
+      connection.disconnect()
+    }
   }
 }
-import XmlUtils._
+
+case class Feed (
+  title: String, link: String, displayLink: String, etag: Option[String],
+  lastModified: Option[String], stories: List[Story])
+
+case class Story(title: String, link: String)
 
 class NotFeedException() extends Exception() { }
 
-case class Story(title: String, link: String)
-class FeedData {
-  var title: String = _
-  var link: String = _
-  var stories: List[Story] = List()
-}
+/** DOM-based RSS/Atom feed parser
+ *    Could be written more easily in Scala, but there's a bug in Android
+ *    involving the SAX parser it depends on that wasn't fixed until 2.2
+ */
+object FeedParse {
+  sealed abstract class FeedType
+  case object RSSFeed extends FeedType
+  case object AtomFeed extends FeedType
 
-sealed abstract class FeedType
-case object RSSFeed extends FeedType
-case object AtomFeed extends FeedType
+  class RichNodeList(list: NodeList) {
+    def foreach(fn: (Node => Unit)) {
+      for (x <- 0 until list.getLength; node = list.item(x))
+        fn(node)
+    }
+  }
+  implicit def enrichNodeList(list: NodeList) = new RichNodeList(list)
 
-/* Could be written really easily in Scala, but there's a bug in Android
-   involving the SAX parser it depends on that wasn't fixed until 2.2
-
-   Using the DOM interface instead
-*/
-
-object FeedData {
-
-  // Part of the Android API versions 8+, with entity encoding fixed in 11
+  /** Extracts a node's text content, converting some XML entities it finds
+   *
+   *  Part of the Android API versions 8+, with entity encoding fixed in 11
+   */
   def getTextContent(node: Node): String = {
     val result = new StringBuilder()
-    foreach(node.getChildNodes) {
+    node.getChildNodes.foreach {
       (child: Node) => result.append(child.getNodeType match {
         case Node.TEXT_NODE => child.getNodeValue
         case Node.ENTITY_REFERENCE_NODE => child.getNodeName match {
@@ -61,7 +95,7 @@ object FeedData {
   def extractStory(node: Node, feedType: FeedType): Story = {
     var title = ""
     var link = ""
-    foreach(node.getChildNodes) {
+    node.getChildNodes.foreach {
       (child: Node) => child.getNodeName match {
         case "title" => title = getTextContent(child)
         case "link" => link = feedType match {
@@ -73,6 +107,12 @@ object FeedData {
       }
     }
     Story(title, link)
+  }
+
+  class FeedData {
+    var title: String = _
+    var link: String = _
+    var stories: ListBuffer[Story] = ListBuffer.empty[Story]
   }
 
   def parseFeed(input: InputStream): FeedData = {
@@ -91,13 +131,13 @@ object FeedData {
       case AtomFeed => root.getElementsByTagName("link").item(0).getAttributes
                         .getNamedItem("href").getNodeValue
     }
-    foreach(root.getElementsByTagName(
+    root.getElementsByTagName(
       feedType match {
         case RSSFeed => "item"
         case AtomFeed => "entry"
-      })) {
+      }).foreach {
       (story:Node) =>
-        result.stories = extractStory(story, feedType) :: result.stories
+        result.stories.append(extractStory(story, feedType))
     }
     result
   }
