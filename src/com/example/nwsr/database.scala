@@ -172,51 +172,24 @@ class NWSRDatabase (context: Context) {
     val posDocs = prefs.getLong("positive_headline_count", 0)
     val negDocs = prefs.getLong("negative_headline_count", 0)
     val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
-    val totWords = {
-      val cWord = db.rawQuery("select count(*) from word", Array.empty[String])
-      cWord.moveToFirst()
-      val result = cWord.getLong(0)
-      cWord.close()
-      result
-    }
-    val posDenom: Double = {
-      val cWord = db.rawQuery(
-        "select count(*) from word where positive > 0", Array.empty[String])
-      cWord.moveToFirst()
-      val result = cWord.getLong(0)
-      cWord.close()
-      (result + totWords).toDouble
-    }
-    val negDenom: Double = {
-      val cWord = db.rawQuery(
-        "select count(*) from word where negative > 0", Array.empty[String])
-      cWord.moveToFirst()
-      val result = cWord.getLong(0)
-      cWord.close()
-      (result + totWords).toDouble
-    }
+    val totWords = Query.singleRow[Long](
+      "select count(*) from word")(_.getLong(0))
+    val posDenom = Query.singleRow[Double](
+      "select count(*) from word where positive > 0")(_.getLong(0) + totWords)
+    val negDenom = Query.singleRow[Double](
+      "select count(*) from word where negative > 0")(_.getLong(0) + totWords)
     var positive: Double = posDocs / totDocs
     var negative: Double = negDocs / totDocs
     for (word <- normalizeWords(title)) {
-      val cWord = db.query(
-        "word", Array("positive", "negative"),
-        "repr = ?", Array(word), null, null, null)
-      if (cWord.getCount > 0) {
-        cWord.moveToFirst()
-        positive *= ((cWord.getLong(0) + 1)/posDenom)
-        negative *= ((cWord.getLong(1) + 1)/negDenom)
-      }
-      cWord.close()
+      Query.conditional(
+        "select positive, negative from word where repr = '%s'"
+        .format(word)) {
+          (c: Cursor) =>
+            positive *= ((c.getLong(0) + 1)/posDenom)
+            negative *= ((c.getLong(1) + 1)/negDenom)
+        }()
     }
     (positive, negative)
-  }
-
-  def foreach(cursor: Cursor)(fn: (Cursor => Unit)) {
-    cursor.moveToFirst()
-    while (!cursor.isAfterLast) {
-      fn(cursor)
-      cursor.moveToNext()
-    }
   }
 
   def filterStories(ids: Array[Long], positive: Boolean) {
@@ -225,16 +198,13 @@ class NWSRDatabase (context: Context) {
       override def default(key: String): Int = 0
     }
     val idString = ids.mkString(", ")
-    val curStories = db.rawQuery(
-      "select title from story where _id in (" + idString + ")",
-      Array.empty[String])
-    foreach(curStories) {
+    Query.foreach(
+      "select title from story where _id in (%s)".format(idString)) {
       (story: Cursor) =>
         for (word <- normalizeWords(story.getString(0))) {
           words(word) = words(word) + 1
         }
     }
-    curStories.close()
 
     for (word <- words.keySet) {
       val curWord = db.query(
@@ -268,5 +238,38 @@ class NWSRDatabase (context: Context) {
 
   def close() {
     helper.close()
+  }
+
+  object Query {
+
+    def singleRow[T](query: String)(fn: (Cursor => T)) = {
+      val cursor = db.rawQuery(query, Array.empty[String])
+      cursor.moveToFirst()
+      val result = fn(cursor)
+      cursor.close()
+      result
+    }
+
+    def conditional(query: String)(exists: (Cursor => Unit))
+        (otherwise: () => Unit = { () => }) {
+      val cursor = db.rawQuery(query, Array.empty[String])
+      if (cursor.getCount > 0) {
+        cursor.moveToFirst()
+        exists(cursor)
+      } else {
+        otherwise()
+      }
+      cursor.close()
+    }
+
+    def foreach(query: String)(fn: (Cursor => Unit)) {
+      val cursor = db.rawQuery(query, Array.empty[String])
+      cursor.moveToFirst()
+      while (!cursor.isAfterLast) {
+        fn(cursor)
+        cursor.moveToNext()
+      }
+      cursor.close()
+    }
   }
 }
