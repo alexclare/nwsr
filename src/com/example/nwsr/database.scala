@@ -123,34 +123,31 @@ class NWSRDatabase (context: Context) {
     null, "weight desc", "20")
 
   def addStory(title: String, link: String, id: Long) = {
-    val cur = db.rawQuery(
+    Query.conditional(
       "select 1 where exists (select null from seen where title = %d)"
-      .format(title.hashCode()),
-      Array.empty[String])
-    if (cur.getCount <= 0) {
-      val story = new ContentValues()
-      val seen = new ContentValues()
-      val now: Long = System.currentTimeMillis/1000
-      story.put("title", title)
-      seen.put("title", java.lang.Integer.valueOf(title.hashCode()))
+      .format(title.hashCode())) () { () =>
+        val story = new ContentValues()
+        val seen = new ContentValues()
+        val now: Long = System.currentTimeMillis/1000
+        story.put("title", title)
+        seen.put("title", java.lang.Integer.valueOf(title.hashCode()))
 
-      // Assume http, https links remain as they are
-      story.put("link", link.stripPrefix("http://"))
+        // Assume http, https links remain as they are
+        story.put("link", link.stripPrefix("http://"))
 
-      story.put("weight", rng.nextDouble())
-      // real weighting algorithm here
-      val cf = classifyStory(title)
-      story.put("pos", cf._1/(cf._1+cf._2))
-      story.put("neg", cf._2/(cf._1+cf._2))
+        story.put("weight", rng.nextDouble())
+        // real weighting algorithm here
+        val cf = classifyStory(title)
+        story.put("pos", cf._1/(cf._1+cf._2))
+        story.put("neg", cf._2/(cf._1+cf._2))
 
-      story.put("updated", java.lang.Long.valueOf(now))
-      seen.put("updated", java.lang.Long.valueOf(now))
-      story.put("feed", java.lang.Long.valueOf(id))
+        story.put("updated", java.lang.Long.valueOf(now))
+        seen.put("updated", java.lang.Long.valueOf(now))
+        story.put("feed", java.lang.Long.valueOf(id))
 
-      db.insert("story", null, story)
-      db.insert("seen", null, seen) 
-    }
-    cur.close()
+        db.insert("story", null, story)
+        db.insert("seen", null, seen) 
+      }
   }
 
   val punctuation = "\\p{Punct}+".r
@@ -198,6 +195,8 @@ class NWSRDatabase (context: Context) {
       override def default(key: String): Int = 0
     }
     val idString = ids.mkString(", ")
+    val thisClass = if (positive) "positive" else "negative"
+    val otherClass = if (positive) "negative" else "positive"
     Query.foreach(
       "select title from story where _id in (%s)".format(idString)) {
       (story: Cursor) =>
@@ -207,25 +206,21 @@ class NWSRDatabase (context: Context) {
     }
 
     for (word <- words.keySet) {
-      val curWord = db.query(
-        "word", Array("_id", if (positive) "positive" else "negative"),
-        "repr = ?", Array(word), null, null, null)
       val values = new ContentValues()
-      if (curWord.getCount > 0) {
-        curWord.moveToFirst()
-        values.put(if (positive) "positive" else "negative", 
-                   java.lang.Long.valueOf(curWord.getLong(1) + words(word)))
-        db.update("word", values, "_id = ?",
-                  Array(curWord.getLong(0).toString))
-      } else {
-        values.put("repr", word) // truncates leading 0s on numbers!
-        values.put(if (positive) "positive" else "negative",
-                   java.lang.Long.valueOf(words(word)))
-        values.put(if (positive) "negative" else "positive",
-                   java.lang.Long.valueOf(0))
-        db.insert("word", null, values)
-      }
-      curWord.close()
+      Query.conditional(
+        "select _id, %s from word where repr = '%s'"
+        .format(thisClass, word)) {
+          (c: Cursor) =>
+          values.put(thisClass,
+                     java.lang.Long.valueOf(c.getLong(1) + words(word)))
+          db.update("word", values, "_id = ?",
+                    Array(c.getLong(0).toString))
+        } { () =>
+          values.put("repr", word) // truncates leading 0s on numbers!
+          values.put(thisClass, java.lang.Long.valueOf(words(word)))
+          values.put(otherClass, java.lang.Long.valueOf(0))
+          db.insert("word", null, values)
+        }
     }
 
     val headlineKey = if (positive) "positive_headline_count"
@@ -241,7 +236,6 @@ class NWSRDatabase (context: Context) {
   }
 
   object Query {
-
     def singleRow[T](query: String)(fn: (Cursor => T)) = {
       val cursor = db.rawQuery(query, Array.empty[String])
       cursor.moveToFirst()
@@ -250,7 +244,8 @@ class NWSRDatabase (context: Context) {
       result
     }
 
-    def conditional(query: String)(exists: (Cursor => Unit))
+    def conditional(query: String)
+        (exists: (Cursor => Unit) = { (c:Cursor) => })
         (otherwise: () => Unit = { () => }) {
       val cursor = db.rawQuery(query, Array.empty[String])
       if (cursor.getCount > 0) {
