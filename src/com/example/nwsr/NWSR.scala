@@ -1,6 +1,7 @@
 package com.example.nwsr
 
 import android.app.ListActivity
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
@@ -24,7 +25,7 @@ import org.xml.sax.SAXParseException
 import scala.collection.mutable.ArrayBuilder
 
 
-class NWSR extends ListActivity {
+class NWSR extends ListActivity with FeedErrorDialog {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
@@ -81,6 +82,8 @@ class NWSR extends ListActivity {
     db.close()
   }
 
+  override def onCreateDialog(id: Int): Dialog = createDialog(this, id)
+
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     val inflater = getMenuInflater()
     inflater.inflate(R.menu.headlines, menu)
@@ -103,9 +106,9 @@ class NWSR extends ListActivity {
               case None =>
             }
           } catch {
-            case _ : UnknownHostException => //showDialog(0) show url as dialog title!
-            case _ : SAXParseException => //showDialog(1)
-            case _ : NotFeedException => //showDialog(1)
+            case _ : UnknownHostException => showDialog(FeedNotFound)
+            case _ : SAXParseException => showDialog(FeedInvalid)
+            case _ : NotFeedException => showDialog(FeedInvalid)
           }
         }
         updateViews()

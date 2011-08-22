@@ -23,7 +23,7 @@ import java.net.UnknownHostException
 import org.xml.sax.SAXParseException
 
 // TODO: Replace arbitrary constants with enums/ints
-class NWSRFeeds extends ListActivity {
+class NWSRFeeds extends ListActivity with FeedErrorDialog {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
@@ -87,22 +87,7 @@ class NWSRFeeds extends ListActivity {
     }
   }
 
-  override def onCreateDialog(id: Int): Dialog = {
-    val builder = new AlertDialog.Builder(this)
-    builder.setCancelable(false)
-    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-      def onClick(dialog: DialogInterface, id: Int) {
-        dialog.dismiss()
-      }
-    })
-    builder.setTitle("Add feed error")
-    builder.setMessage(id match {
-      case 0 => "Could not load URL"
-      case 1 => "Not a valid RSS/Atom feed"
-      case _ => "Unknown Error"
-    })
-    builder.create()
-  }
+  override def onCreateDialog(id: Int): Dialog = createDialog(this, id)
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
@@ -143,9 +128,9 @@ class NWSRFeeds extends ListActivity {
         case None =>
       }
     } catch {
-      case _ : UnknownHostException => showDialog(0)
-      case _ : SAXParseException => showDialog(1)
-      case _ : NotFeedException => showDialog(1)
+      case _ : UnknownHostException => showDialog(FeedNotFound)
+      case _ : SAXParseException => showDialog(FeedInvalid)
+      case _ : NotFeedException => showDialog(FeedInvalid)
     }
     updateViews()
   }
@@ -174,5 +159,27 @@ class NWSRAddFeed extends Activity {
           finish()
         }
       })
+  }
+}
+
+trait FeedErrorDialog {
+  val FeedNotFound: Int = 0
+  val FeedInvalid: Int = 1
+
+  def createDialog(context: Context, id: Int): Dialog = {
+    val builder = new AlertDialog.Builder(context)
+    builder.setCancelable(false)
+    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+      def onClick(dialog: DialogInterface, id: Int) {
+        dialog.dismiss()
+      }
+    })
+    builder.setTitle("Add feed error")
+    builder.setMessage(id match {
+      case FeedNotFound => "Could not load URL"
+      case FeedInvalid => "Not a valid RSS/Atom feed"
+      case _ => "Unknown Error"
+    })
+    builder.create()
   }
 }
