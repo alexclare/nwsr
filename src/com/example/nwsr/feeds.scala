@@ -49,7 +49,7 @@ class NWSRFeeds extends ListActivity {
     registerForContextMenu(getListView)
 
     db = new NWSRDatabase(this).open()
-    cursor = db.feeds()
+    cursor = db.feedView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.feed, cursor, Array("title", "display_link"),
       Array(R.id.feed_title, R.id.feed_link))
@@ -131,12 +131,16 @@ class NWSRFeeds extends ListActivity {
 
   def addFeed(base: String) {
     try {
-      val feed = Feed.retrieve(base)
+      Feed.retrieve(base) match {
       // parseFeed might take a long time; feedback here?
       // heck, this whole process (parsing, bayes filter, removing dupes) might
-      val id = db.addFeed(feed)
-      for (story <- feed.stories) {
-        db.addStory(story, id)
+        case Some(feed) => {
+          val id = db.addFeed(feed, None)
+          for (story <- feed.stories) {
+            db.addStory(story, id)
+          }
+        }
+        case None =>
       }
     } catch {
       case _ : UnknownHostException => showDialog(0)

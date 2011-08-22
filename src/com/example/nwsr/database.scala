@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.preference.PreferenceManager
 
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.ListBuffer
 import scala.math.pow
 import scala.util.Random
 
@@ -76,10 +77,11 @@ class NWSRDatabase (context: Context) {
     this
   }
 
-  def feeds(): Cursor = db.query("feed", Array("_id", "title", "display_link"),
-                                 null, null, null, null, "title asc")
+  def feedView(): Cursor = db.query(
+    "feed", Array("_id", "title", "display_link"),
+    null, null, null, null, "title asc")
 
-  def addFeed(feed: Feed): Long = {
+  def addFeed(feed: Feed, id: Option[Long]): Long = {
     val values = new ContentValues()
     val now: Long = System.currentTimeMillis/1000
     values.put("title", feed.title)
@@ -95,33 +97,44 @@ class NWSRDatabase (context: Context) {
       case Some(lm) => values.put("last_modified", lm)
       case None =>
     }
-    db.insert("feed", null, values)
+    id match {
+      case None => db.insert("feed", null, values)
+      case Some(i) => db.update("feed", values, "_id = " + i,
+                                Array.empty[String])
+    }
   }
 
   def deleteFeed(id: Long) {
     db.delete("feed", "_id = " + id, null)
     db.delete("story", "feed = " + id, null)
   }
-/*
-  def refreshFeeds(ids: Array[Long]) {
-    val idString = ids.mkString(", ")    
+
+  def refreshLinks(): List[(Long, String, Option[String], Option[String])] = {
+    // set to 10 minutes for testing purposes
+    val timeAgo: Long = System.currentTimeMillis/1000 - 600
+    val buf = ListBuffer.empty[(Long, String, Option[String], Option[String])]
     Query.foreach(
-      "select link, etag, last_modified from feed where _id in (%s)"
-      .format(idString)) {
+      "select _id, link, etag, last_modified from feed where updated < %d"
+      .format(timeAgo)) {
         (c: Cursor) =>
-          // move the add/refresh functions to a dedicated class outside of the activity
+          val etag = c.getString(2)
+          val lastModified = c.getString(3)
+          buf.append((c.getLong(0), c.getString(1),
+                      if (etag == null) None else Some(etag),
+                      if (lastModified == null) None else Some(lastModified)))
       }
+    buf.result()
   }
-*/
+
   def purgeOld() {
     //val weekAgo: Long = System.currentTimeMillis/1000 - 604800
     // set to 10 minutes for testing purposes
-    val weekAgo: Long = System.currentTimeMillis/1000 - 600
+    val weekAgo: Long = System.currentTimeMillis/1000 - 1800
     db.execSQL("delete from story where updated < %d".format(weekAgo))
     db.execSQL("delete from seen where updated < %d".format(weekAgo))
   }
 
-  def stories(): Cursor = db.query(
+  def storyView(): Cursor = db.query(
     "story", Array("_id", "title", "link", "pos", "neg"), null, null, null,
     null, "weight desc", "20")
 

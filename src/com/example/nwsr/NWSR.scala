@@ -17,6 +17,10 @@ import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
+import java.net.UnknownHostException
+
+import org.xml.sax.SAXParseException
+
 import scala.collection.mutable.ArrayBuilder
 
 
@@ -54,7 +58,7 @@ class NWSR extends ListActivity {
 
     registerForContextMenu(getListView)    
     db = new NWSRDatabase(this).open()
-    cursor = db.stories()
+    cursor = db.storyView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
       Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
@@ -86,8 +90,24 @@ class NWSR extends ListActivity {
   override def onOptionsItemSelected(item: MenuItem): Boolean = 
     item.getItemId() match {
       case R.id.refresh => {
-//        db.refreshFeeds()
         db.purgeOld()
+        for (link <- db.refreshLinks()) {
+          try {
+            Feed.refresh(link._2, link._3, link._4) match {
+              case Some(feed) => {
+                val id = db.addFeed(feed, Some(link._1))
+                for (story <- feed.stories) {
+                  db.addStory(story, id)
+                }
+              }
+              case None =>
+            }
+          } catch {
+            case _ : UnknownHostException => //showDialog(0) show url as dialog title!
+            case _ : SAXParseException => //showDialog(1)
+            case _ : NotFeedException => //showDialog(1)
+          }
+        }
         updateViews()
         true
       }

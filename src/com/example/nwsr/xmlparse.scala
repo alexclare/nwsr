@@ -13,10 +13,10 @@ import org.w3c.dom.NodeList
 
 
 object Feed {
-  def retrieve(link: String): Feed = refresh(link, None, None)
+  def retrieve(link: String): Option[Feed] = refresh(link, None, None)
 
   def refresh(link: String, etag: Option[String],
-              lastModified: Option[String]): Feed = {
+              lastModified: Option[String]): Option[Feed] = {
     val url = new URL(if (link.startsWith("http://") ||
                           link.startsWith("https://")) link
                       else "http://" + link)
@@ -31,13 +31,19 @@ object Feed {
     }
     try {
       val istream = connection.getInputStream()
-      val etag = connection.getHeaderField("ETag")
-      val lastModified = connection.getHeaderField("Last-Modified")
-      val data = FeedParse.parseFeed(istream)
-      Feed(data.title, connection.getURL.toString, data.link,
-           if (etag == null) None else Some(etag),
-           if (lastModified == null) None else Some(lastModified),
-           data.stories.result())
+      connection.getResponseCode match {
+        case HttpURLConnection.HTTP_OK => {
+          val etag = connection.getHeaderField("ETag")
+          val lastModified = connection.getHeaderField("Last-Modified")
+          val data = FeedParse.parseFeed(istream)
+          Some(Feed(data.title, connection.getURL.toString, data.link,
+                    if (etag == null) None else Some(etag),
+                    if (lastModified == null) None else Some(lastModified),
+                    data.stories.result()))
+        }
+        case HttpURLConnection.HTTP_NOT_MODIFIED => None
+        case _ => throw new NotFeedException()
+      }
     } finally {
       connection.disconnect()
     }
