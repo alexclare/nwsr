@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="prefs_stories_per_page">
+    <item>10</item>
+    <item>20</item>
+    <item>30</item>
+    <item>40</item>
+  </string-array>
+  <string-array name="prefs_stories_per_page_values">
+    <item>10</item>
+    <item>20</item>
+    <item>30</item>
+    <item>40</item>
+  </string-array>
+  <string-array name="prefs_min_feed_refresh">
+    <item>Never</item>
+    <item>3 hours</item>
+    <item>6 hours</item>
+    <item>12 hours</item>
+  </string-array>
+  <string-array name="prefs_min_feed_refresh_values">
+    <item>10800</item>
+    <item>21600</item>
+    <item>43200</item>
+    <item>86400</item>
+  </string-array>
+  <string-array name="prefs_max_story_age">
+    <item>3 days</item>
+    <item>1 week</item>
+    <item>2 weeks</item>
+    <item>4 weeks</item>
+  </string-array>
+  <string-array name="prefs_max_story_age_values">
+    <item>84600</item>
+    <item>259200</item>
+    <item>604800</item>
+    <item>1209600</item>
+  </string-array>
+</resources>

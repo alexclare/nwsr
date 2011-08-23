@@ -46,6 +46,10 @@
        android:name=".NWSRSettings"
        android:label="@string/title_preferences"
        />
+    <activity
+       android:name=".NWSRLicense"
+       android:label="@string/title_license"
+       />
   </application>
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-sdk

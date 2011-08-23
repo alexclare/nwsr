@@ -24,6 +24,11 @@ import org.xml.sax.SAXParseException
 
 import scala.collection.mutable.ArrayBuilder
 
+import android.app.Activity
+import android.preference.Preference
+//import android.text.method.ScrollingMovementMethod
+import scala.io.Source
+import android.widget.ScrollView
 
 class NWSR extends ListActivity with FeedErrorDialog {
   var db: NWSRDatabase = _
@@ -162,5 +167,25 @@ class NWSRSettings extends PreferenceActivity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     addPreferencesFromResource(R.xml.settings);
+    val activity = this
+    findPreference("settings_license")
+    .setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+      def onPreferenceClick(p: Preference): Boolean = {
+        startActivity(new Intent(activity, classOf[NWSRLicense]))
+        true
+      }
+    })
+  }
+}
+
+class NWSRLicense extends Activity {
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
+    val view = new ScrollView(this)
+    val tv = new TextView(this)
+    view.addView(tv)
+    setContentView(view)
+    val text = Source.fromInputStream(getAssets().open("license.txt")).getLines().mkString("\n")
+    tv.setText(text)
   }
 }

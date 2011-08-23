@@ -1,37 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen
    xmlns:android="http://schemas.android.com/apk/res/android">
-
-  <PreferenceCategory
-     android:title="@string/prefs_preferences_title">
-    <EditTextPreference
-       android:key="stories_per_page"
-       android:title="@string/prefs_stories_per_page_title"
-       android:summary="@string/prefs_stories_per_page_summary"
-       android:defaultValue="10"
-       />
-    <EditTextPreference
-       android:key="min_feed_refresh"
-       android:title="@string/prefs_min_feed_refresh_title"
-       android:summary="@string/prefs_min_feed_refresh_summary"
-       android:defaultValue="600"
-       />
-    <EditTextPreference
-       android:key="max_story_age"
-       android:title="@string/prefs_max_story_age_title"
-       android:summary="@string/prefs_max_story_age_summary"
-       android:defaultValue="604800"
-       />
-  </PreferenceCategory>
-
+  <ListPreference
+     android:key="stories_per_page"
+     android:title="@string/prefs_stories_per_page_title"
+     android:summary="@string/prefs_stories_per_page_summary"
+     android:entries="@array/prefs_stories_per_page"
+     android:entryValues="@array/prefs_stories_per_page_values"
+     android:defaultValue="10"
+     />
+  <ListPreference
+     android:key="min_feed_refresh"
+     android:title="@string/prefs_min_feed_refresh_title"
+     android:summary="@string/prefs_min_feed_refresh_summary"
+     android:entries="@array/prefs_min_feed_refresh"
+     android:entryValues="@array/prefs_min_feed_refresh_values"
+     android:defaultValue="10800"
+     />
+  <ListPreference
+     android:key="max_story_age"
+     android:title="@string/prefs_max_story_age_title"
+     android:summary="@string/prefs_max_story_age_summary"
+     android:entries="@array/prefs_max_story_age"
+     android:entryValues="@array/prefs_max_story_age_values"
+     android:defaultValue="84600"
+     />
   <PreferenceCategory
      android:title="@string/prefs_miscellaneous_title">
     <Preference
-       android:title="@string/prefs_about_title"
-       />
-    <Preference
        android:title="@string/prefs_license_title"
+       android:key="settings_license"
        />
   </PreferenceCategory>
-
 </PreferenceScreen>
