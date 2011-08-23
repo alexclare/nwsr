@@ -15,7 +15,7 @@
      android:summary="@string/prefs_min_feed_refresh_summary"
      android:entries="@array/prefs_min_feed_refresh"
      android:entryValues="@array/prefs_min_feed_refresh_values"
-     android:defaultValue="3"
+     android:defaultValue="43200000"
      />
   <ListPreference
      android:key="max_story_age"
@@ -23,7 +23,7 @@
      android:summary="@string/prefs_max_story_age_summary"
      android:entries="@array/prefs_max_story_age"
      android:entryValues="@array/prefs_max_story_age_values"
-     android:defaultValue="1"
+     android:defaultValue="604800000"
      />
   <PreferenceCategory
      android:title="@string/prefs_miscellaneous_title">

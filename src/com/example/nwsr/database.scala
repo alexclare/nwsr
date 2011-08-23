@@ -99,24 +99,21 @@ class NWSRDatabase (context: Context) {
     }
     id match {
       case None => db.insert("feed", null, values)
-      case Some(i) => db.update("feed", values, "_id = " + i,
-                                Array.empty[String])
+      case Some(i) => { 
+        db.update("feed", values, "_id = " + i, Array.empty[String])
+        i
+      }
     }
   }
 
   def deleteFeed(id: Long) {
-    db.delete("feed", "_id = " + id, null)
     db.delete("story", "feed = " + id, null)
+    db.delete("feed", "_id = " + id, null)
   }
 
   def refreshLinks(): List[(Long, String, Option[String], Option[String])] = {
     val timeAgo: Long = System.currentTimeMillis -
-    (prefs.getString("min_feed_refresh", "3") match {
-      case "0" => -3600000
-      case "1" => 10800000
-      case "2" => 21600000
-      case _   => 43200000
-    })
+      prefs.getString("min_feed_refresh", "43200000").toLong
     val buf = ListBuffer.empty[(Long, String, Option[String], Option[String])]
     Query.foreach(
       "select _id, link, etag, last_modified from feed where updated < %d"
@@ -133,12 +130,7 @@ class NWSRDatabase (context: Context) {
 
   def purgeOld() {
     val timeAgo: Long = System.currentTimeMillis -
-    (prefs.getString("max_story_age", "1") match {
-      case "0" => 259200000
-      case "2" => 1209600000
-      case "3" => "2419200000".toLong
-      case _   => 604800000
-    })
+      prefs.getString("max_story_age", "604800000").toLong
     db.execSQL("delete from story where updated < %d".format(timeAgo))
     db.execSQL("delete from seen where updated < %d".format(timeAgo))
   }

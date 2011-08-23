@@ -26,7 +26,7 @@ import scala.collection.mutable.ArrayBuilder
 
 
 class NWSR extends ListActivity
-with FeedErrorDialog with SharedPreferences.OnSharedPreferenceChangeListener {
+with SharedPreferences.OnSharedPreferenceChangeListener {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
@@ -86,8 +86,6 @@ with FeedErrorDialog with SharedPreferences.OnSharedPreferenceChangeListener {
     db.close()
   }
 
-  override def onCreateDialog(id: Int): Dialog = createDialog(this, id)
-
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     val inflater = getMenuInflater()
     inflater.inflate(R.menu.headlines, menu)
@@ -110,9 +108,13 @@ with FeedErrorDialog with SharedPreferences.OnSharedPreferenceChangeListener {
               case None =>
             }
           } catch {
-            case _ : UnknownHostException => showDialog(FeedNotFound)
-            case _ : SAXParseException => showDialog(FeedInvalid)
-            case _ : NotFeedException => showDialog(FeedInvalid)
+            /* Don't display errors when refreshing multiple feeds; without an
+             *   easy way to display feed URLs in the error title, the feedback
+             *   is too confusing for users
+             */
+            case _ : UnknownHostException =>
+            case _ : SAXParseException =>
+            case _ : NotFeedException =>
           }
         }
         updateViews()

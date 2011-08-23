@@ -22,7 +22,6 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
-// TODO: Replace arbitrary constants with enums/ints
 class NWSRFeeds extends ListActivity with FeedErrorDialog {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -105,6 +104,16 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
     val info = item.getMenuInfo().asInstanceOf[
       AdapterView.AdapterContextMenuInfo]
     item.getItemId() match {
+      case R.id.refresh => {
+        db.purgeOld()
+        /* // bad: ignores etag/lastmod/stale
+        val id = db.addFeed(feed, Some(id))
+        for (story <- feed.stories) {
+          db.addStory(story, id)
+        }
+        */
+        true
+      }
       case R.id.delete => {
         db.deleteFeed(info.id)
         updateViews()

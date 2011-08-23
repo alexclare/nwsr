@@ -19,10 +19,10 @@
     <item>12 hours</item>
   </string-array>
   <string-array name="prefs_min_feed_refresh_values">
-    <item>0</item>
-    <item>1</item>
-    <item>2</item>
-    <item>3</item>
+    <item>-3600000</item>
+    <item>10800000</item>
+    <item>21600000</item>
+    <item>43200000</item>
   </string-array>
   <string-array name="prefs_max_story_age">
     <item>3 days</item>
@@ -31,9 +31,9 @@
     <item>4 weeks</item>
   </string-array>
   <string-array name="prefs_max_story_age_values">
-    <item>0</item>
-    <item>1</item>
-    <item>2</item>
-    <item>3</item>
+    <item>259200000</item>
+    <item>604800000</item>
+    <item>1209600000</item>
+    <item>2419200000</item>
   </string-array>
 </resources>
