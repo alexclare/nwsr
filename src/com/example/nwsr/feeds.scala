@@ -174,7 +174,7 @@ trait FeedErrorDialog {
         dialog.dismiss()
       }
     })
-    builder.setTitle("Add feed error")
+    builder.setTitle("Retrieve feed error")
     builder.setMessage(id match {
       case FeedNotFound => "Could not load URL"
       case FeedInvalid => "Not a valid RSS/Atom feed"
