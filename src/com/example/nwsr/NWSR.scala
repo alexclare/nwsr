@@ -4,10 +4,10 @@ import android.app.ListActivity
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
-import android.preference.PreferenceActivity
 import android.preference.PreferenceManager
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -24,13 +24,9 @@ import org.xml.sax.SAXParseException
 
 import scala.collection.mutable.ArrayBuilder
 
-import android.app.Activity
-import android.preference.Preference
-//import android.text.method.ScrollingMovementMethod
-import scala.io.Source
-import android.widget.ScrollView
 
-class NWSR extends ListActivity with FeedErrorDialog {
+class NWSR extends ListActivity
+with FeedErrorDialog with SharedPreferences.OnSharedPreferenceChangeListener {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
@@ -39,7 +35,6 @@ class NWSR extends ListActivity with FeedErrorDialog {
     super.onCreate(savedInstanceState)
     setTitle(R.string.title_headlines)
     setContentView(R.layout.headlines)
-    PreferenceManager.setDefaultValues(this, R.xml.settings, false)
 
     val inflater = LayoutInflater.from(this)
     val footer = inflater.inflate(R.layout.button_next_headline, null)
@@ -69,6 +64,10 @@ class NWSR extends ListActivity with FeedErrorDialog {
       this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
       Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
     setListAdapter(adapter)
+
+    PreferenceManager.setDefaultValues(this, R.xml.settings, false)
+    PreferenceManager.getDefaultSharedPreferences(this)
+      .registerOnSharedPreferenceChangeListener(this)
   }
 
   override def onResume() {
@@ -160,32 +159,11 @@ class NWSR extends ListActivity with FeedErrorDialog {
       case _ => super.onContextItemSelected(item)
     }
   }
-}
 
-
-class NWSRSettings extends PreferenceActivity {
-  override def onCreate(savedInstanceState: Bundle) {
-    super.onCreate(savedInstanceState)
-    addPreferencesFromResource(R.xml.settings);
-    val activity = this
-    findPreference("settings_license")
-    .setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
-      def onPreferenceClick(p: Preference): Boolean = {
-        startActivity(new Intent(activity, classOf[NWSRLicense]))
-        true
-      }
-    })
-  }
-}
-
-class NWSRLicense extends Activity {
-  override def onCreate(savedInstanceState: Bundle) {
-    super.onCreate(savedInstanceState)
-    val view = new ScrollView(this)
-    val tv = new TextView(this)
-    view.addView(tv)
-    setContentView(view)
-    val text = Source.fromInputStream(getAssets().open("license.txt")).getLines().mkString("\n")
-    tv.setText(text)
+  def onSharedPreferenceChanged(sp: SharedPreferences, key: String) {
+    if (key == "stories_per_page") {
+      cursor = db.storyView()
+      adapter.changeCursor(cursor)
+    }
   }
 }

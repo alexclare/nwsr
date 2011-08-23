@@ -83,7 +83,7 @@ class NWSRDatabase (context: Context) {
 
   def addFeed(feed: Feed, id: Option[Long]): Long = {
     val values = new ContentValues()
-    val now: Long = System.currentTimeMillis/1000
+    val now: Long = System.currentTimeMillis
     values.put("title", feed.title)
     values.put("link", feed.link)
     values.put("display_link", feed.displayLink)
@@ -110,8 +110,13 @@ class NWSRDatabase (context: Context) {
   }
 
   def refreshLinks(): List[(Long, String, Option[String], Option[String])] = {
-    // set to 10 minutes for testing purposes
-    val timeAgo: Long = System.currentTimeMillis/1000 - 600
+    val timeAgo: Long = System.currentTimeMillis -
+    (prefs.getString("min_feed_refresh", "3") match {
+      case "0" => -3600000
+      case "1" => 10800000
+      case "2" => 21600000
+      case _   => 43200000
+    })
     val buf = ListBuffer.empty[(Long, String, Option[String], Option[String])]
     Query.foreach(
       "select _id, link, etag, last_modified from feed where updated < %d"
@@ -127,16 +132,22 @@ class NWSRDatabase (context: Context) {
   }
 
   def purgeOld() {
-    //val weekAgo: Long = System.currentTimeMillis/1000 - 604800
-    // set to 10 minutes for testing purposes
-    val weekAgo: Long = System.currentTimeMillis/1000 - 1800
-    db.execSQL("delete from story where updated < %d".format(weekAgo))
-    db.execSQL("delete from seen where updated < %d".format(weekAgo))
+    val timeAgo: Long = System.currentTimeMillis -
+    (prefs.getString("max_story_age", "1") match {
+      case "0" => 259200000
+      case "2" => 1209600000
+      case "3" => "2419200000".toLong
+      case _   => 604800000
+    })
+    db.execSQL("delete from story where updated < %d".format(timeAgo))
+    db.execSQL("delete from seen where updated < %d".format(timeAgo))
   }
 
-  def storyView(): Cursor = db.query(
-    "story", Array("_id", "title", "link", "pos", "neg"), null, null, null,
-    null, "weight desc", "20")
+  def storyView(): Cursor = {
+    val limit = prefs.getString("stories_per_page", "20")
+    db.query("story", Array("_id", "title", "link", "pos", "neg"),
+             null, null, null, null, "weight desc", limit)
+  }
 
   def addStory(story: Story, id: Long) {
     Query.conditional(
@@ -144,18 +155,17 @@ class NWSRDatabase (context: Context) {
       .format(story.title.hashCode())) () { () =>
         val values = new ContentValues()
         val seen = new ContentValues()
-        val now: Long = System.currentTimeMillis/1000
+        val now: Long = System.currentTimeMillis
         values.put("title", story.title)
         seen.put("title", java.lang.Integer.valueOf(story.title.hashCode()))
 
         // Assume http, https links remain as they are
         values.put("link", story.link.stripPrefix("http://"))
 
-        values.put("weight", rng.nextDouble())
-        // real weighting algorithm here
         val cf = classifyStory(story.title)
         values.put("pos", cf._1/(cf._1+cf._2))
         values.put("neg", cf._2/(cf._1+cf._2))
+        values.put("weight", Math.pow(rng.nextDouble(),cf._2/(cf._1+cf._2)))
 
         values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))
