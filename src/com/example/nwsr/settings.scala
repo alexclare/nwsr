@@ -32,7 +32,9 @@ class NWSRLicense extends Activity {
     val tv = new TextView(this)
     view.addView(tv)
     setContentView(view)
-    val text = Source.fromInputStream(getAssets().open("license.txt")).getLines().mkString("\n")
+    val text = Source.fromInputStream(
+      getResources().openRawResource(R.raw.license))
+      .getLines().mkString("\n")
     tv.setText(text)
   }
 }
