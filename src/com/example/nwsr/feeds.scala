@@ -18,14 +18,13 @@ import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
 
+import java.io.FileNotFoundException
 import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
-class NWSRFeeds extends ListActivity with FeedErrorDialog {
-  var db: NWSRDatabase = _
-  var cursor: Cursor = _
-  var adapter: SimpleCursorAdapter = _
+class NWSRFeeds extends NewsActivity {
+  val errorDialogs = true
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -47,7 +46,6 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
 
     registerForContextMenu(getListView)
 
-    db = new NWSRDatabase(this).open()
     cursor = db.feedView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.feed, cursor, Array("title", "display_link"),
@@ -58,35 +56,19 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
       addFeed(getIntent.getDataString)
+      updateView()
     }
-  }
-
-  override def onResume() {
-    super.onResume()
-    updateViews()
-  }
-
-  def updateViews() {
-    cursor.requery()
-    adapter.notifyDataSetChanged()
-  }
-
-  override def onDestroy() {
-    super.onDestroy()
-    cursor.close()
-    db.close()
   }
 
   override def onActivityResult(request: Int, result: Int, data: Intent) {
     result match {
       case Activity.RESULT_OK => {
         addFeed(data.getStringExtra("url"))
+        updateView()
       }
       case _ =>
     }
   }
-
-  override def onCreateDialog(id: Int): Dialog = createDialog(this, id)
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
@@ -124,39 +106,18 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
           case _ : SAXParseException => showDialog(FeedInvalid)
           case _ : NotFeedException => showDialog(FeedInvalid)
         }
-        updateViews()
+        updateView()
         true
       }
       case R.id.delete => {
         db.deleteFeed(info.id)
-        updateViews()
+        updateView()
         true
       }
       case _ => super.onContextItemSelected(item)
     }
   }
 
-  def addFeed(base: String) {
-    try {
-      Feed.retrieve(base) match {
-      // parseFeed might take a long time; feedback here?
-      // heck, this whole process (parsing, bayes filter, removing dupes) might
-        case Some(feed) => {
-          val id = db.addFeed(feed, None)
-          for (story <- feed.stories) {
-            db.addStory(story, id)
-          }
-        }
-        case None =>
-      }
-    } catch {
-      case _ : FileNotFoundException => showDialog(FeedNotFound)
-      case _ : UnknownHostException => showDialog(FeedNotFound)
-      case _ : SAXParseException => showDialog(FeedInvalid)
-      case _ : NotFeedException => showDialog(FeedInvalid)
-    }
-    updateViews()
-  }
 }
 
 class NWSRAddFeed extends Activity {
@@ -185,12 +146,34 @@ class NWSRAddFeed extends Activity {
   }
 }
 
-trait FeedErrorDialog {
+abstract class NewsActivity extends ListActivity {
   val FeedNotFound: Int = 0
   val FeedInvalid: Int = 1
 
-  def createDialog(context: Context, id: Int): Dialog = {
-    val builder = new AlertDialog.Builder(context)
+  val errorDialogs: Boolean
+
+  var db: NWSRDatabase = _
+  var cursor: Cursor = _
+  var adapter: SimpleCursorAdapter = _
+
+  override def onCreate(savedInstanceState: Bundle) {
+    super.onCreate(savedInstanceState)
+    db = new NWSRDatabase(this).open()
+  }
+
+  override def onResume() {
+    super.onResume()
+    updateView()
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    cursor.close()
+    db.close()
+  }
+
+  override def onCreateDialog(id: Int): Dialog = {
+    val builder = new AlertDialog.Builder(this)
     builder.setCancelable(false)
     builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
       def onClick(dialog: DialogInterface, id: Int) {
@@ -204,5 +187,35 @@ trait FeedErrorDialog {
       case _ => "Unknown Error"
     })
     builder.create()
+  }
+
+  def updateView() {
+    cursor.requery()
+    adapter.notifyDataSetChanged()
+  }
+
+  def addFeed(base: String) {
+    try {
+      Feed.retrieve(base) match {
+      // parseFeed might take a long time; feedback here?
+      // heck, this whole process (parsing, bayes filter, removing dupes) might
+        case Some(feed) => {
+          val id = db.addFeed(feed, None)
+          for (story <- feed.stories) {
+            db.addStory(story, id)
+          }
+        }
+        case None =>
+      }
+    } catch {
+      case _ : FileNotFoundException => {
+        if (errorDialogs) showDialog(FeedNotFound)
+      }
+      case _ : UnknownHostException => {
+        if (errorDialogs) showDialog(FeedNotFound)
+      }
+      case _ : SAXParseException => if (errorDialogs) showDialog(FeedInvalid)
+      case _ : NotFeedException => if (errorDialogs) showDialog(FeedInvalid)
+    }
   }
 }

@@ -18,6 +18,7 @@ import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
+import java.io.FileNotFoundException
 import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
@@ -25,11 +26,9 @@ import org.xml.sax.SAXParseException
 import scala.collection.mutable.ArrayBuilder
 
 
-class NWSR extends ListActivity
+class NWSR extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
-  var db: NWSRDatabase = _
-  var cursor: Cursor = _
-  var adapter: SimpleCursorAdapter = _
+  val errorDialogs = false
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -52,13 +51,12 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
           }
           arr.result()
         }, false)
-        updateViews()
+        updateView()
         activity.getListView.setSelectionAfterHeaderView()
       }
     })
 
     registerForContextMenu(getListView)    
-    db = new NWSRDatabase(this).open()
     cursor = db.storyView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
@@ -68,22 +66,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     PreferenceManager.setDefaultValues(this, R.xml.settings, false)
     PreferenceManager.getDefaultSharedPreferences(this)
       .registerOnSharedPreferenceChangeListener(this)
-  }
-
-  override def onResume() {
-    super.onResume()
-    updateViews()
-  }
-
-  def updateViews() {
-    cursor.requery()
-    adapter.notifyDataSetChanged()
-  }
-
-  override def onDestroy() {
-    super.onDestroy()
-    cursor.close()
-    db.close()
   }
 
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -118,7 +100,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
             case _ : NotFeedException =>
           }
         }
-        updateViews()
+        updateView()
         true
       }
       case R.id.feeds => {
