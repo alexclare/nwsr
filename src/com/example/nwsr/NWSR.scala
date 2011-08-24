@@ -112,6 +112,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
              *   easy way to display feed URLs in the error title, the feedback
              *   is too confusing for users
              */
+            case _ : FileNotFoundException =>
             case _ : UnknownHostException =>
             case _ : SAXParseException =>
             case _ : NotFeedException =>
@@ -122,6 +123,9 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       }
       case R.id.feeds => {
         startActivity(new Intent(this, classOf[NWSRFeeds]))
+        true
+      }
+      case R.id.saved => {
         true
       }
       case R.id.settings => {

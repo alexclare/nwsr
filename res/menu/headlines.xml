@@ -15,6 +15,12 @@
       />
 
    <item
+      android:id="@+id/saved"
+      android:icon="@drawable/ic_menu_star"
+      android:title="@string/menu_saved"
+      />
+
+   <item
       android:id="@+id/settings"
       android:icon="@drawable/ic_menu_preferences"
       android:title="@string/menu_settings"

@@ -119,6 +119,7 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
             case None =>
           }
         } catch {
+          case _ : FileNotFoundException => showDialog(FeedNotFound)
           case _ : UnknownHostException => showDialog(FeedNotFound)
           case _ : SAXParseException => showDialog(FeedInvalid)
           case _ : NotFeedException => showDialog(FeedInvalid)
@@ -149,6 +150,7 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
         case None =>
       }
     } catch {
+      case _ : FileNotFoundException => showDialog(FeedNotFound)
       case _ : UnknownHostException => showDialog(FeedNotFound)
       case _ : SAXParseException => showDialog(FeedInvalid)
       case _ : NotFeedException => showDialog(FeedInvalid)
