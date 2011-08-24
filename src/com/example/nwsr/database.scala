@@ -111,6 +111,17 @@ class NWSRDatabase (context: Context) {
     db.delete("feed", "_id = " + id, null)
   }
 
+  def refreshLink(id: Long): (String, Option[String], Option[String]) = {
+    Query.singleRow[(String, Option[String], Option[String])](
+      "select link, etag, last_modified from feed where _id = %d".format(id)) {
+      (c: Cursor) =>
+        val etag = c.getString(1)
+        val lastModified = c.getString(2)
+        (c.getString(0), if (etag == null) None else Some(etag),
+         if (lastModified == null) None else Some(lastModified))
+    }
+  }
+
   def refreshLinks(): List[(Long, String, Option[String], Option[String])] = {
     val timeAgo: Long = System.currentTimeMillis -
       prefs.getString("min_feed_refresh", "43200000").toLong

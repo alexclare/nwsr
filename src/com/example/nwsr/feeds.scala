@@ -104,14 +104,26 @@ class NWSRFeeds extends ListActivity with FeedErrorDialog {
     val info = item.getMenuInfo().asInstanceOf[
       AdapterView.AdapterContextMenuInfo]
     item.getItemId() match {
+      // A lot of repeated code here with the main refresh button
       case R.id.refresh => {
         db.purgeOld()
-        /* // bad: ignores etag/lastmod/stale
-        val id = db.addFeed(feed, Some(id))
-        for (story <- feed.stories) {
-          db.addStory(story, id)
+        val link = db.refreshLink(info.id)
+        try {
+          Feed.refresh(link._1, link._2, link._3) match {
+            case Some(feed) => {
+              val id = db.addFeed(feed, Some(info.id))
+              for (story <- feed.stories) {
+                db.addStory(story, id)
+              }
+            }
+            case None =>
+          }
+        } catch {
+          case _ : UnknownHostException => showDialog(FeedNotFound)
+          case _ : SAXParseException => showDialog(FeedInvalid)
+          case _ : NotFeedException => showDialog(FeedInvalid)
         }
-        */
+        updateViews()
         true
       }
       case R.id.delete => {
