@@ -168,7 +168,7 @@ class NWSRDatabase (context: Context) {
         val cf = classifyStory(story.title)
         values.put("pos", cf._1/(cf._1+cf._2))
         values.put("neg", cf._2/(cf._1+cf._2))
-        values.put("weight", Math.pow(rng.nextDouble(),cf._2/(cf._1+cf._2)))
+        values.put("weight", pow(rng.nextDouble(),cf._2/(cf._1+cf._2)))
 
         values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))

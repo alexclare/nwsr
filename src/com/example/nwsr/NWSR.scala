@@ -1,11 +1,8 @@
 package com.example.nwsr
 
-import android.app.ListActivity
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.preference.PreferenceManager
@@ -17,11 +14,6 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
-
-import java.io.FileNotFoundException
-import java.net.UnknownHostException
-
-import org.xml.sax.SAXParseException
 
 import scala.collection.mutable.ArrayBuilder
 
@@ -79,26 +71,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       case R.id.refresh => {
         db.purgeOld()
         for (link <- db.refreshLinks()) {
-          try {
-            Feed.refresh(link._2, link._3, link._4) match {
-              case Some(feed) => {
-                val id = db.addFeed(feed, Some(link._1))
-                for (story <- feed.stories) {
-                  db.addStory(story, id)
-                }
-              }
-              case None =>
-            }
-          } catch {
-            /* Don't display errors when refreshing multiple feeds; without an
-             *   easy way to display feed URLs in the error title, the feedback
-             *   is too confusing for users
-             */
-            case _ : FileNotFoundException =>
-            case _ : UnknownHostException =>
-            case _ : SAXParseException =>
-            case _ : NotFeedException =>
-          }
+          refreshFeed(link._1, link._2, link._3, link._4)
         }
         updateView()
         true
