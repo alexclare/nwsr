@@ -61,35 +61,16 @@ abstract class NewsActivity extends ListActivity {
     adapter.notifyDataSetChanged()
   }
 
-  def addFeed(base: String) {
-    try {
-      Feed.retrieve(base) match {
-      // parseFeed might take a long time; feedback here?
-      // heck, this whole process (parsing, bayes filter, removing dupes) might
-        case Some(feed) => {
-          val id = db.addFeed(feed, None)
-          for (story <- feed.stories) {
-            db.addStory(story, id)
-          }
-        }
-        case None =>
-      }
-    } catch {
-      case _ : FileNotFoundException =>
-        if (errorDialogs) showDialog(FeedNotFound)
-      case _ : UnknownHostException =>
-        if (errorDialogs) showDialog(FeedNotFound)
-      case _ : SAXParseException => if (errorDialogs) showDialog(FeedInvalid)
-      case _ : NotFeedException => if (errorDialogs) showDialog(FeedInvalid)
-    }
+  def refreshFeed(link: String) {
+    refreshFeed(None, link, None, None)
   }
 
-  def refreshFeed (id: Long, link: String, etag: Option[String],
-                   lastModified: Option[String]) {
+  def refreshFeed(id: Option[Long], link: String, etag: Option[String],
+                  lastModified: Option[String]) {
     try {
       Feed.refresh(link, etag, lastModified) match {
         case Some(feed) => {
-          val newId = db.addFeed(feed, Some(id))
+          val newId = db.addFeed(feed, id)
           for (story <- feed.stories) {
             db.addStory(story, newId)
           }

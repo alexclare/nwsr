@@ -46,7 +46,7 @@ class NWSRFeeds extends NewsActivity {
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
-      addFeed(getIntent.getDataString)
+      refreshFeed(getIntent.getDataString)
       updateView()
     }
   }
@@ -54,7 +54,7 @@ class NWSRFeeds extends NewsActivity {
   override def onActivityResult(request: Int, result: Int, data: Intent) {
     result match {
       case Activity.RESULT_OK => {
-        addFeed(data.getStringExtra("url"))
+        refreshFeed(data.getStringExtra("url"))
         updateView()
       }
       case _ =>
@@ -80,7 +80,7 @@ class NWSRFeeds extends NewsActivity {
       case R.id.refresh => {
         db.purgeOld()
         val link = db.refreshLink(info.id)
-        refreshFeed(info.id, link._1, link._2, link._3)
+        refreshFeed(Some(info.id), link._1, link._2, link._3)
         updateView()
         true
       }

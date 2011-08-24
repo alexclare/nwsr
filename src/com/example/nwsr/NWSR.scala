@@ -71,7 +71,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       case R.id.refresh => {
         db.purgeOld()
         for (link <- db.refreshLinks()) {
-          refreshFeed(link._1, link._2, link._3, link._4)
+          refreshFeed(Some(link._1), link._2, link._3, link._4)
         }
         updateView()
         true

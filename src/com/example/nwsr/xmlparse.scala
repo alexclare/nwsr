@@ -13,8 +13,6 @@ import org.w3c.dom.NodeList
 
 
 object Feed {
-  def retrieve(link: String): Option[Feed] = refresh(link, None, None)
-
   def refresh(link: String, etag: Option[String],
               lastModified: Option[String]): Option[Feed] = {
     val url = new URL(if (link.startsWith("http://") ||
