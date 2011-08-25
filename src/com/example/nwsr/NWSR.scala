@@ -1,8 +1,11 @@
 package com.example.nwsr
 
+import android.app.Dialog
+import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.AsyncTask
 import android.os.Bundle
 import android.preference.PreferenceManager
 import android.view.ContextMenu
@@ -20,6 +23,8 @@ import scala.collection.mutable.ArrayBuilder
 class NWSR extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
   activity =>
+  val NextPage: Int = 2
+
   val errorDialogs = false
 
   override def onCreate(savedInstanceState: Bundle) {
@@ -33,7 +38,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     getListView.addFooterView(footer)
     footer.setOnClickListener(new View.OnClickListener() {
       def onClick(v: View) {
-        db.filterStories({
+        val ids = {
           val arr = ArrayBuilder.make[Long]
           cursor.moveToFirst()
           while (!cursor.isAfterLast) {
@@ -41,9 +46,22 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
             cursor.moveToNext()
           }
           arr.result()
-        }, false)
-        updateView()
-        activity.getListView.setSelectionAfterHeaderView()
+        }
+        new AsyncTask[Object, Unit, Unit]() {
+          override def onPreExecute() = {
+            showDialog(NextPage)
+          }
+
+          def doInBackground(a: Object*) {
+            db.filterStories(ids, false)
+          }
+
+          override def onPostExecute(a: Unit) {
+            updateView()
+            activity.getListView.setSelectionAfterHeaderView()
+            dismissDialog(NextPage)
+          }
+        }.execute()
       }
     })
 
@@ -145,5 +163,10 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       cursor = db.storyView()
       adapter.changeCursor(cursor)
     }
+  }
+
+  override def onCreateDialog(id: Int): Dialog = id match {
+    case NextPage => ProgressDialog.show(this, "", "Working...", true)
+    case _ => super.onCreateDialog(id)
   }
 }

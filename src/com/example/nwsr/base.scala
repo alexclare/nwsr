@@ -50,21 +50,24 @@ abstract class NewsActivity extends DatabaseActivity {
 
   val errorDialogs: Boolean
 
-  override def onCreateDialog(id: Int): Dialog = {
-    val builder = new AlertDialog.Builder(this)
-    builder.setCancelable(false)
-    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-      def onClick(dialog: DialogInterface, id: Int) {
-        dialog.dismiss()
-      }
-    })
-    builder.setTitle("Retrieve feed error")
-    builder.setMessage(id match {
-      case FeedNotFound => "Could not load URL"
-      case FeedInvalid => "Not a valid RSS/Atom feed"
-      case _ => "Unknown Error"
-    })
-    builder.create()
+  override def onCreateDialog(id: Int): Dialog = id match {
+    case (FeedNotFound | FeedInvalid) => {
+      val builder = new AlertDialog.Builder(this)
+      builder.setCancelable(false)
+      builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, id: Int) {
+          dialog.dismiss()
+        }
+      })
+      builder.setTitle("Retrieve feed error")
+      builder.setMessage(id match {
+        case FeedNotFound => "Could not load URL"
+        case FeedInvalid => "Not a valid RSS/Atom feed"
+        case _ => "Unknown Error"
+      })
+      builder.create()
+    }
+    case _ => super.onCreateDialog(id)
   }
 
   def refreshFeed(link: String) {
