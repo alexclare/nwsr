@@ -75,7 +75,7 @@ object FeedParse {
 
   /** Extracts a node's text content, converting some XML entities it finds
    *
-   *  Part of the Android API versions 8+, with entity encoding fixed in 11
+   *  Included in the Android API versions 8+, with entity encoding fixed in 11
    */
   def getTextContent(node: Node): String = {
     val result = new StringBuilder()
