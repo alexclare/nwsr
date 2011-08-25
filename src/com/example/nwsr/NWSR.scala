@@ -20,6 +20,7 @@ import scala.collection.mutable.ArrayBuilder
 
 class NWSR extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
+  activity =>
   val errorDialogs = false
 
   override def onCreate(savedInstanceState: Bundle) {
@@ -31,7 +32,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     val footer = inflater.inflate(R.layout.button_next_headline, null)
       .asInstanceOf[TextView]
     getListView.addFooterView(footer)
-    val activity = this
     footer.setOnClickListener(new View.OnClickListener() {
       def onClick(v: View) {
         db.filterStories({
@@ -67,7 +67,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
   }
 
   override def onOptionsItemSelected(item: MenuItem): Boolean = 
-    item.getItemId() match {
+    item.getItemId match {
       case R.id.refresh => {
         db.purgeOld()
         for (link <- db.refreshLinks()) {
@@ -81,6 +81,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         true
       }
       case R.id.saved => {
+        startActivity(new Intent(this, classOf[NWSRSaved]))
         true
       }
       case R.id.settings => {
@@ -103,18 +104,29 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
   }
 
   override def onContextItemSelected(item: MenuItem): Boolean = {
-    val info = item.getMenuInfo().asInstanceOf[
+    val info = item.getMenuInfo.asInstanceOf[
       AdapterView.AdapterContextMenuInfo]
-    item.getItemId() match {
+    item.getItemId match {
       case R.id.open_browser => {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
         db.filterStories(Array(info.id), true)
-        // Temporarily disable opening in browser
-        val intent = new Intent(Intent.ACTION_VIEW)
-          .setData(Uri.parse(if (url.startsWith("http://")) url
-                             else "http://" + url))
-        //startActivity(intent)
+        startActivity(new Intent(Intent.ACTION_VIEW)
+                      .setData(Uri.parse(if (url.startsWith("http://")) url
+                                         else "http://" + url)))
+        // This updateView is probably unnecessary (it's called in onResume,
+        //   and we come back from an activity), but just in case
+        updateView()
+        true
+      }
+      case R.id.save => {
+        db.addSaved(Story(
+          info.targetView.findViewById(R.id.headline_title)
+            .asInstanceOf[TextView].getText.toString,
+          info.targetView.findViewById(R.id.headline_link)
+            .asInstanceOf[TextView].getText.toString))
+        db.filterStories(Array(info.id), true)
+        updateView()
         true
       }
       case _ => super.onContextItemSelected(item)

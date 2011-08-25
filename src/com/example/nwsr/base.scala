@@ -13,12 +13,7 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
-abstract class NewsActivity extends ListActivity {
-  val FeedNotFound: Int = 0
-  val FeedInvalid: Int = 1
-
-  val errorDialogs: Boolean
-
+abstract class DatabaseActivity extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
   var adapter: SimpleCursorAdapter = _
@@ -39,6 +34,19 @@ abstract class NewsActivity extends ListActivity {
     db.close()
   }
 
+  def updateView() {
+    cursor.requery()
+    adapter.notifyDataSetChanged()
+  }
+}
+
+
+abstract class NewsActivity extends DatabaseActivity {
+  val FeedNotFound: Int = 0
+  val FeedInvalid: Int = 1
+
+  val errorDialogs: Boolean
+
   override def onCreateDialog(id: Int): Dialog = {
     val builder = new AlertDialog.Builder(this)
     builder.setCancelable(false)
@@ -54,11 +62,6 @@ abstract class NewsActivity extends ListActivity {
       case _ => "Unknown Error"
     })
     builder.create()
-  }
-
-  def updateView() {
-    cursor.requery()
-    adapter.notifyDataSetChanged()
   }
 
   def refreshFeed(link: String) {

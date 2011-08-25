@@ -11,10 +11,11 @@ import android.widget.TextView
 import scala.io.Source
 
 class NWSRSettings extends PreferenceActivity {
+  activity =>
+
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     addPreferencesFromResource(R.xml.settings);
-    val activity = this
     findPreference("settings_license")
     .setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
       def onPreferenceClick(p: Preference): Boolean = {

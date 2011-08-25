@@ -14,8 +14,9 @@ import android.widget.EditText
 import android.widget.TextView
 
 class NWSRFeeds extends NewsActivity {
-  val errorDialogs = true
+  activity =>
 
+  val errorDialogs = true
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -26,7 +27,6 @@ class NWSRFeeds extends NewsActivity {
       .asInstanceOf[TextView]
     getListView.addHeaderView(header)
 
-    val activity = this
     val ocl = new View.OnClickListener() {
       def onClick(v: View) {
         startActivityForResult(new Intent(activity, classOf[NWSRAddFeed]), 0)

@@ -46,6 +46,11 @@ object NWSRDatabaseHelper {
   val createSeen = ("create table seen (" +
                     "title integer primary key, " +
                     "updated integer);")
+
+  val createSaved = ("create table saved (" +
+                     "_id integer primary key, " +
+                     "title string, " +
+                     "link string);")
 }
 
 class NWSRDatabaseHelper (val context: Context)
@@ -58,6 +63,7 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
     db.execSQL(createFeeds)
     db.execSQL(createWords)
     db.execSQL(createSeen)
+    db.execSQL(createSaved)
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
@@ -144,6 +150,22 @@ class NWSRDatabase (context: Context) {
       prefs.getString("max_story_age", "604800000").toLong
     db.execSQL("delete from story where updated < %d".format(timeAgo))
     db.execSQL("delete from seen where updated < %d".format(timeAgo))
+  }
+
+  def addSaved(story: Story) {
+    val values = new ContentValues()
+    values.put("title", story.title)
+    values.put("link", story.link)
+    db.insert("saved", null, values)
+  }
+
+  def savedView(): Cursor = {
+    db.query("saved", Array("_id", "title", "link"),
+             null, null, null, null, "_id desc")
+  }
+
+  def deleteSaved(id: Long) {
+    db.delete("saved", "_id = " + id, null)
   }
 
   def storyView(): Cursor = {

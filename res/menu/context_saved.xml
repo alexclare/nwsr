@@ -6,7 +6,7 @@
       android:title="@string/menu_open_browser"
       />
    <item
-      android:id="@+id/save"
-      android:title="@string/menu_save"
+      android:id="@+id/delete"
+      android:title="@string/menu_delete"
       />
 </menu>

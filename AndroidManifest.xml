@@ -50,6 +50,10 @@
        android:name=".NWSRLicense"
        android:label="@string/title_license"
        />
+    <activity
+       android:name=".NWSRSaved"
+       android:label="@string/title_saved"
+       />
   </application>
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-sdk
