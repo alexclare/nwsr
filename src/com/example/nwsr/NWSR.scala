@@ -3,7 +3,6 @@ package com.example.nwsr
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.os.Bundle
 import android.preference.PreferenceManager
 import android.view.ContextMenu
@@ -60,6 +59,11 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       .registerOnSharedPreferenceChangeListener(this)
   }
 
+  override def onResume() {
+    super.onResume()
+    updateView()
+  }
+
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
     val inflater = getMenuInflater()
     inflater.inflate(R.menu.headlines, menu)
@@ -111,9 +115,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
         db.filterStories(Array(info.id), true)
-        startActivity(new Intent(Intent.ACTION_VIEW)
-                      .setData(Uri.parse(if (url.startsWith("http://")) url
-                                         else "http://" + url)))
+        openInBrowser(url)
         // This updateView is probably unnecessary (it's called in onResume,
         //   and we come back from an activity), but just in case
         updateView()
@@ -128,6 +130,11 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         db.filterStories(Array(info.id), true)
         updateView()
         true
+      }
+      case R.id.delete => {
+        db.filterStories(Array(info.id), false)
+        updateView()
+        false
       }
       case _ => super.onContextItemSelected(item)
     }

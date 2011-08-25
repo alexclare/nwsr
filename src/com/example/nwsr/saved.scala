@@ -1,7 +1,5 @@
 package com.example.nwsr
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.ContextMenu
 import android.view.MenuItem
@@ -27,13 +25,11 @@ class NWSRSaved extends DatabaseActivity {
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
     super.onCreateContextMenu(menu, v, menuInfo)
-    if (menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].id >= 0) {
-      val inflater = getMenuInflater()
-      inflater.inflate(R.menu.context_saved, menu)
-      menu.setHeaderTitle(
-        menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].targetView
-        .findViewById(R.id.headline_title).asInstanceOf[TextView].getText)
-    }
+    val inflater = getMenuInflater()
+    inflater.inflate(R.menu.context_saved, menu)
+    menu.setHeaderTitle(
+      menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo].targetView
+      .findViewById(R.id.headline_title).asInstanceOf[TextView].getText)
   }
 
   override def onContextItemSelected(item: MenuItem): Boolean = {
@@ -41,11 +37,8 @@ class NWSRSaved extends DatabaseActivity {
       AdapterView.AdapterContextMenuInfo]
     item.getItemId match {
       case R.id.open_browser => {
-        val url = info.targetView.findViewById(R.id.headline_link)
-          .asInstanceOf[TextView].getText.toString
-        startActivity(new Intent(Intent.ACTION_VIEW)
-                      .setData(Uri.parse(if (url.startsWith("http://")) url
-                                         else "http://" + url)))
+        openInBrowser(info.targetView.findViewById(R.id.headline_link)
+                      .asInstanceOf[TextView].getText.toString)
         true
       }
       case R.id.delete => {

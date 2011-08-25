@@ -6,6 +6,10 @@
      android:title="@string/menu_refresh"
      />
   <item
+     android:id="@+id/open_browser"
+     android:title="@string/menu_open_browser"
+     />
+  <item
      android:id="@+id/delete"
      android:title="@string/menu_delete"
      />

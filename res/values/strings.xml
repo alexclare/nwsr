@@ -18,8 +18,7 @@
     <string name="add_feeds_button_ok">OK</string>
     <string name="add_feeds_button_cancel">Cancel</string>
 
-    <string name="title_preferences">NWSR - Preferences</string>
-    <string name="prefs_preferences_title">NWSR Preferences</string>
+    <string name="title_preferences">NWSR - Settings</string>
     <string name="prefs_stories_per_page_title">Headlines per page</string>
     <string name="prefs_min_feed_refresh_title">Mark feeds stale after</string>
     <string name="prefs_max_story_age_title">Mark headlines old after</string>

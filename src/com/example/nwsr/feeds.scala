@@ -36,13 +36,15 @@ class NWSRFeeds extends NewsActivity {
     findViewById(android.R.id.empty).setOnClickListener(ocl)
 
     registerForContextMenu(getListView)
-
     cursor = db.feedView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.feed, cursor, Array("title", "display_link"),
       Array(R.id.feed_title, R.id.feed_link))
     setListAdapter(adapter)
+  }
 
+  override def onResume() {
+    super.onResume()
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
@@ -84,6 +86,11 @@ class NWSRFeeds extends NewsActivity {
         updateView()
         true
       }
+      case R.id.open_browser => {
+        openInBrowser(info.targetView.findViewById(R.id.feed_link)
+          .asInstanceOf[TextView].getText.toString)
+        true
+      }
       case R.id.delete => {
         db.deleteFeed(info.id)
         updateView()
@@ -92,7 +99,6 @@ class NWSRFeeds extends NewsActivity {
       case _ => super.onContextItemSelected(item)
     }
   }
-
 }
 
 class NWSRAddFeed extends Activity {

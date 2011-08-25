@@ -4,7 +4,9 @@ import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ListActivity
 import android.content.DialogInterface
+import android.content.Intent
 import android.database.Cursor
+import android.net.Uri
 import android.os.Bundle
 import android.widget.SimpleCursorAdapter
 
@@ -23,11 +25,6 @@ abstract class DatabaseActivity extends ListActivity {
     db = new NWSRDatabase(this).open()
   }
 
-  override def onResume() {
-    super.onResume()
-    updateView()
-  }
-
   override def onDestroy() {
     super.onDestroy()
     cursor.close()
@@ -37,6 +34,12 @@ abstract class DatabaseActivity extends ListActivity {
   def updateView() {
     cursor.requery()
     adapter.notifyDataSetChanged()
+  }
+
+  def openInBrowser(url: String) {
+    startActivity(new Intent(Intent.ACTION_VIEW)
+                  .setData(Uri.parse(if (url.startsWith("http://")) url
+                                     else "http://" + url)))
   }
 }
 
