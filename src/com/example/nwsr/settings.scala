@@ -1,17 +1,12 @@
 package com.example.nwsr
 
 import android.app.Activity
-import android.app.Dialog
-import android.app.ProgressDialog
 import android.content.Intent
 import android.preference.Preference
 import android.preference.PreferenceActivity
-import android.os.AsyncTask
 import android.os.Bundle
 import android.widget.ScrollView
-import android.widget.TextView
-
-import scala.io.Source
+import android.webkit.WebView
 
 class NWSRSettings extends PreferenceActivity {
   activity =>
@@ -33,28 +28,9 @@ class NWSRLicense extends Activity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     val view = new ScrollView(this)
-    val tv = new TextView(this)
-    view.addView(tv)
+    val wv = new WebView(this)
+    view.addView(wv)
     setContentView(view)
-    new AsyncTask[Object, Unit, String]() {
-      override def onPreExecute() {
-        showDialog(0)
-      }
-
-      // doInBackground throws an exception when given the param type Unit*
-      def doInBackground(a: Object*): String = {
-        Source.fromInputStream(
-          getResources().openRawResource(R.raw.license))
-          .getLines().mkString("\n")
-      }
-
-      override def onPostExecute(text: String) {
-        tv.setText(text)
-        dismissDialog(0)
-      }
-    }.execute()
+    wv.loadUrl("file:///android_asset/license.txt")
   }
-
-  override def onCreateDialog(id: Int): Dialog = ProgressDialog.show(
-    this, "", "Loading...", true)
 }
