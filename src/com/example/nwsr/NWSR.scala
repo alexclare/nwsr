@@ -67,8 +67,8 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     registerForContextMenu(getListView)    
     cursor = db.storyView()
     adapter = new SimpleCursorAdapter(
-      this, R.layout.headline, cursor, Array("title", "link", "pos", "neg"),
-      Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
+      this, R.layout.headline, cursor, Array("title", "link"),
+      Array(R.id.headline_title, R.id.headline_link))
     setListAdapter(adapter)
 
     PreferenceManager.setDefaultValues(this, R.xml.settings, false)

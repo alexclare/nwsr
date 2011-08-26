@@ -17,8 +17,8 @@ class NWSRSaved extends DatabaseActivity {
     registerForContextMenu(getListView)
     cursor = db.savedView()
     adapter = new SimpleCursorAdapter(
-      this, R.layout.headline, cursor, Array("title", "link", "_id", "_id"),
-      Array(R.id.headline_title, R.id.headline_link, R.id.headline_random, R.id.headline_weight))
+      this, R.layout.headline, cursor, Array("title", "link"),
+      Array(R.id.headline_title, R.id.headline_link))
     setListAdapter(adapter)
   }
 

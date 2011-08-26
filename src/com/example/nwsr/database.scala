@@ -171,7 +171,7 @@ class NWSRDatabase (context: Context) {
 
   def storyView(): Cursor = {
     val limit = prefs.getString("stories_per_page", "20")
-    db.query("story", Array("_id", "title", "link", "pos", "neg"),
+    db.query("story", Array("_id", "title", "link"),
              null, null, null, null, "weight desc", limit)
   }
 
