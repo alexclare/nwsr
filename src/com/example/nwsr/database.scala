@@ -117,30 +117,31 @@ class NWSRDatabase (context: Context) {
     db.delete("feed", "_id = " + id, null)
   }
 
-  def refreshLink(id: Long): (String, Option[String], Option[String]) = {
-    Query.singleRow[(String, Option[String], Option[String])](
+  def refreshLink(id: Long): FeedInfo = {
+    Query.singleRow[FeedInfo](
       "select link, etag, last_modified from feed where _id = %d".format(id)) {
       (c: Cursor) =>
         val etag = c.getString(1)
         val lastModified = c.getString(2)
-        (c.getString(0), if (etag == null) None else Some(etag),
-         if (lastModified == null) None else Some(lastModified))
+        FeedInfo(Some(id), c.getString(0), if (etag == null) None else Some(etag),
+                 if (lastModified == null) None else Some(lastModified))
     }
   }
 
-  def refreshLinks(): List[(Long, String, Option[String], Option[String])] = {
+  def refreshLinks(): List[FeedInfo] = {
     val timeAgo: Long = System.currentTimeMillis -
       prefs.getString("min_feed_refresh", "43200000").toLong
-    val buf = ListBuffer.empty[(Long, String, Option[String], Option[String])]
+    val buf = ListBuffer.empty[FeedInfo]
     Query.foreach(
       "select _id, link, etag, last_modified from feed where updated < %d"
       .format(timeAgo)) {
         (c: Cursor) =>
           val etag = c.getString(2)
           val lastModified = c.getString(3)
-          buf.append((c.getLong(0), c.getString(1),
-                      if (etag == null) None else Some(etag),
-                      if (lastModified == null) None else Some(lastModified)))
+          buf.append(
+            FeedInfo(Some(c.getLong(0)), c.getString(1),
+                     if (etag == null) None else Some(etag),
+                     if (lastModified == null) None else Some(lastModified)))
       }
     buf.result()
   }
@@ -319,3 +320,6 @@ class NWSRDatabase (context: Context) {
     }
   }
 }
+
+case class FeedInfo(id: Option[Long], link: String, etag: Option[String],
+                    lastModified: Option[String])

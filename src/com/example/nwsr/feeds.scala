@@ -16,8 +16,6 @@ import android.widget.TextView
 class NWSRFeeds extends NewsActivity {
   activity =>
 
-  val errorDialogs = true
-
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.feeds)
@@ -48,16 +46,17 @@ class NWSRFeeds extends NewsActivity {
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
-      refreshFeed(getIntent.getDataString)
-      updateView()
+      new RetrieveFeedTask().execute(
+        FeedInfo(None, getIntent.getDataString, None, None))
     }
+    updateView()
   }
 
   override def onActivityResult(request: Int, result: Int, data: Intent) {
     result match {
       case Activity.RESULT_OK => {
-        refreshFeed(data.getStringExtra("url"))
-        updateView()
+        new RetrieveFeedTask().execute(
+          FeedInfo(None, data.getStringExtra("url"), None, None))
       }
       case _ =>
     }
@@ -81,9 +80,7 @@ class NWSRFeeds extends NewsActivity {
     item.getItemId() match {
       case R.id.refresh => {
         db.purgeOld()
-        val link = db.refreshLink(info.id)
-        refreshFeed(Some(info.id), link._1, link._2, link._3)
-        updateView()
+        new RetrieveFeedTask().execute(db.refreshLink(info.id))
         true
       }
       case R.id.open_browser => {

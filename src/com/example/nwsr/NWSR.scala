@@ -23,9 +23,6 @@ import scala.collection.mutable.ArrayBuilder
 class NWSR extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
   activity =>
-  val NextPage: Int = 2
-
-  val errorDialogs = false
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -48,8 +45,10 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
           arr.result()
         }
         new AsyncTask[Object, Unit, Unit]() {
+          var dialog: ProgressDialog = _
+
           override def onPreExecute() = {
-            showDialog(NextPage)
+            dialog = ProgressDialog.show(activity, "", "Working...", true)
           }
 
           def doInBackground(a: Object*) {
@@ -59,7 +58,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
           override def onPostExecute(a: Unit) {
             updateView()
             activity.getListView.setSelectionAfterHeaderView()
-            dismissDialog(NextPage)
+            dialog.dismiss()
           }
         }.execute()
       }
@@ -92,10 +91,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     item.getItemId match {
       case R.id.refresh => {
         db.purgeOld()
-        for (link <- db.refreshLinks()) {
-          refreshFeed(Some(link._1), link._2, link._3, link._4)
-        }
-        updateView()
+        new RetrieveFeedTask().execute(db.refreshLinks():_*)
         true
       }
       case R.id.feeds => {
@@ -166,7 +162,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
   }
 
   override def onCreateDialog(id: Int): Dialog = id match {
-    case NextPage => ProgressDialog.show(this, "", "Working...", true)
     case _ => super.onCreateDialog(id)
   }
 }

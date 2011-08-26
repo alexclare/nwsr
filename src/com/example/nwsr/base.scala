@@ -2,11 +2,13 @@ package com.example.nwsr
 
 import android.app.AlertDialog
 import android.app.Dialog
+import android.app.ProgressDialog
 import android.app.ListActivity
 import android.content.DialogInterface
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
+import android.os.AsyncTask
 import android.os.Bundle
 import android.widget.SimpleCursorAdapter
 
@@ -45,10 +47,10 @@ abstract class DatabaseActivity extends ListActivity {
 
 
 abstract class NewsActivity extends DatabaseActivity {
+  activity =>
+
   val FeedNotFound: Int = 0
   val FeedInvalid: Int = 1
-
-  val errorDialogs: Boolean
 
   override def onCreateDialog(id: Int): Dialog = id match {
     case (FeedNotFound | FeedInvalid) => {
@@ -70,29 +72,58 @@ abstract class NewsActivity extends DatabaseActivity {
     case _ => super.onCreateDialog(id)
   }
 
-  def refreshFeed(link: String) {
-    refreshFeed(None, link, None, None)
-  }
+  /** Unfortunately, the Scala compiler doesn't generate type signatures for
+   *    this class that are recognizable by the Android VM once the program is
+   *    running, hence the "Object"
+   */
+  class RetrieveFeedTask extends AsyncTask[Object, Unit, Unit] {
+    var dialog: ProgressDialog = _
+    var error: Int = 0
 
-  def refreshFeed(id: Option[Long], link: String, etag: Option[String],
-                  lastModified: Option[String]) {
-    try {
-      Feed.refresh(link, etag, lastModified) match {
-        case Some(feed) => {
-          val newId = db.addFeed(feed, id)
-          for (story <- feed.stories) {
-            db.addStory(story, newId)
+    override def onPreExecute() {
+        dialog = ProgressDialog.show(activity, "", "Retrieving...", true)
+    }
+
+    def doInBackground(feeds: Object*) {
+      // repair variable names here -- too many "feeds", "feedinfo", "retrieve", "refresh"
+      val total = feeds.length
+      var ind = 0
+      while (ind < total) {
+        val feed = feeds(ind).asInstanceOf[FeedInfo]
+        try {
+          Feed.refresh(feed.link, feed.etag, feed.lastModified) match {
+            case Some(f) => {
+              val newId = db.addFeed(f, feed.id)
+              for (story <- f.stories) {
+                db.addStory(story, newId)
+              }
+            }
+            case None =>
+          }
+        } catch {
+          case _ @ (_: FileNotFoundException | _: UnknownHostException)
+          => if (total == 1) {
+            error = FeedNotFound
+            cancel(false)
+          }
+          case _ @ (_: SAXParseException | _: NotFeedException)
+          => if (total == 1) {
+            error = FeedInvalid
+            cancel(false)
           }
         }
-        case None =>
+        ind += 1
       }
-    } catch {
-      case _ : FileNotFoundException =>
-        if (errorDialogs) showDialog(FeedNotFound)
-      case _ : UnknownHostException =>
-        if (errorDialogs) showDialog(FeedNotFound)
-      case _ : SAXParseException => if (errorDialogs) showDialog(FeedInvalid)
-      case _ : NotFeedException => if (errorDialogs) showDialog(FeedInvalid)
+    }
+
+    override def onPostExecute(a:Unit) {
+      updateView()
+      dialog.dismiss()
+    }
+
+    override def onCancelled() {
+      dialog.dismiss()
+      showDialog(error)
     }
   }
 }
