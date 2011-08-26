@@ -31,6 +31,6 @@ class NWSRLicense extends Activity {
     val wv = new WebView(this)
     view.addView(wv)
     setContentView(view)
-    wv.loadUrl("file:///android_asset/license.txt")
+    wv.loadUrl("file:///android_asset/license.html")
   }
 }
