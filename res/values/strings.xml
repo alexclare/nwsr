@@ -4,7 +4,7 @@
 
     <string name="title_headlines">NWSR - Headlines</string>
     <string name="headlines_empty">No new headlines</string>
-    <string name="headlines_next">More headlines...</string>
+    <string name="headlines_next">Next page</string>
     <string name="menu_open_browser">Open in browser</string>
     <string name="menu_save">Save for later</string>
     <string name="menu_feeds">News Feeds</string>

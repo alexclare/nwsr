@@ -130,8 +130,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
           .asInstanceOf[TextView].getText.toString
         db.filterStories(Array(info.id), true)
         openInBrowser(url)
-        // This updateView is probably unnecessary (it's called in onResume,
-        //   and we come back from an activity), but just in case
         updateView()
         true
       }
@@ -159,9 +157,5 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       cursor = db.storyView()
       adapter.changeCursor(cursor)
     }
-  }
-
-  override def onCreateDialog(id: Int): Dialog = id match {
-    case _ => super.onCreateDialog(id)
   }
 }

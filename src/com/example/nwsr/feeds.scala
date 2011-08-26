@@ -1,7 +1,8 @@
 package com.example.nwsr
 
-import android.app.Activity
-import android.content.Context
+import android.app.AlertDialog
+import android.app.Dialog
+import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
 import android.view.ContextMenu
@@ -16,6 +17,8 @@ import android.widget.TextView
 class NWSRFeeds extends NewsActivity {
   activity =>
 
+  val AddFeed: Int = 2
+
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.feeds)
@@ -27,7 +30,7 @@ class NWSRFeeds extends NewsActivity {
 
     val ocl = new View.OnClickListener() {
       def onClick(v: View) {
-        startActivityForResult(new Intent(activity, classOf[NWSRAddFeed]), 0)
+        showDialog(AddFeed)
       }
     }
     header.setOnClickListener(ocl)
@@ -50,16 +53,6 @@ class NWSRFeeds extends NewsActivity {
         FeedInfo(None, getIntent.getDataString, None, None))
     }
     updateView()
-  }
-
-  override def onActivityResult(request: Int, result: Int, data: Intent) {
-    result match {
-      case Activity.RESULT_OK => {
-        new RetrieveFeedTask().execute(
-          FeedInfo(None, data.getStringExtra("url"), None, None))
-      }
-      case _ =>
-    }
   }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
@@ -96,30 +89,42 @@ class NWSRFeeds extends NewsActivity {
       case _ => super.onContextItemSelected(item)
     }
   }
-}
 
-class NWSRAddFeed extends Activity {
-  override def onCreate(savedInstanceState: Bundle) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.add_feed);
+  override def onCreateDialog(id: Int): Dialog = id match {
+    case AddFeed => {
+      val builder = new AlertDialog.Builder(this)
+      val inflater = LayoutInflater.from(this)
+      val layout = inflater.inflate(R.layout.add_feed, null)
+      builder.setPositiveButton(
+        R.string.add_feeds_button_ok,
+        new DialogInterface.OnClickListener () {
+          def onClick(dialog: DialogInterface, button: Int) {
+            new RetrieveFeedTask().execute(
+              FeedInfo(None, layout.findViewById(R.id.add_feed_url)
+                       .asInstanceOf[EditText].getText().toString(),
+                       None, None))
+            dialog.dismiss()
+          }
+        })
+      builder.setNegativeButton(
+        R.string.add_feeds_button_cancel,
+        new DialogInterface.OnClickListener () {
+          def onClick(dialog: DialogInterface, button: Int) {
+            dialog.dismiss()
+          }
+        })
+      builder.setView(layout)
+      builder.setTitle(R.string.feeds_add_text)
+      builder.create()
+    }
+    case _ => super.onCreateDialog(id)
+  }
 
-    findViewById(R.id.add_feed_ok).setOnClickListener(
-      new View.OnClickListener {
-        def onClick(v: View) {
-          val intent = new Intent()
-          val et = findViewById(R.id.add_feed_url).asInstanceOf[EditText]
-          intent.putExtra("url", et.getText().toString())
-          setResult(Activity.RESULT_OK, intent)
-          finish()
-        }
-      })
-
-    findViewById(R.id.add_feed_cancel).setOnClickListener(
-      new View.OnClickListener {
-        def onClick(v: View) {
-          setResult(Activity.RESULT_CANCELED)
-          finish()
-        }
-      })
+  override def onPrepareDialog(id: Int, dialog: Dialog) = id match {
+    case AddFeed => {
+      dialog.findViewById(R.id.add_feed_url)
+        .asInstanceOf[EditText].setText("")
+    }
+    case _ => super.onPrepareDialog(id, dialog)
   }
 }

@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.widget.SimpleCursorAdapter
 
 import java.io.FileNotFoundException
+import java.io.IOException
 import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
@@ -101,7 +102,8 @@ abstract class NewsActivity extends DatabaseActivity {
             case None =>
           }
         } catch {
-          case _ @ (_: FileNotFoundException | _: UnknownHostException)
+          case _ @ (_: FileNotFoundException | _: UnknownHostException |
+                    _: IOException)
           => if (total == 1) {
             error = FeedNotFound
             cancel(false)
