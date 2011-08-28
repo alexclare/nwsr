@@ -14,6 +14,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
+import android.widget.ListView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
@@ -30,39 +31,8 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     setContentView(R.layout.headlines)
 
     val inflater = LayoutInflater.from(this)
-    val footer = inflater.inflate(R.layout.button_next_headline, null)
-      .asInstanceOf[TextView]
-    getListView.addFooterView(footer)
-    footer.setOnClickListener(new View.OnClickListener() {
-      def onClick(v: View) {
-        val ids = {
-          val arr = ArrayBuilder.make[Long]
-          cursor.moveToFirst()
-          while (!cursor.isAfterLast) {
-            arr += cursor.getLong(0)
-            cursor.moveToNext()
-          }
-          arr.result()
-        }
-        new AsyncTask[Object, Unit, Unit]() {
-          var dialog: ProgressDialog = _
-
-          override def onPreExecute() = {
-            dialog = ProgressDialog.show(activity, "", "Working...", true)
-          }
-
-          def doInBackground(a: Object*) {
-            db.filterStories(ids, false)
-          }
-
-          override def onPostExecute(a: Unit) {
-            updateView()
-            activity.getListView.setSelectionAfterHeaderView()
-            dialog.dismiss()
-          }
-        }.execute()
-      }
-    })
+    getListView.addFooterView(
+      inflater.inflate(R.layout.button_next_headline, null))
 
     registerForContextMenu(getListView)    
     cursor = db.storyView()
@@ -108,6 +78,37 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       }
       case _ => super.onOptionsItemSelected(item)
     }
+
+  override def onListItemClick(lv: ListView, v: View, pos: Int, id: Long) {
+    if (id < 0) {
+      val ids = {
+        val arr = ArrayBuilder.make[Long]
+        cursor.moveToFirst()
+        while (!cursor.isAfterLast) {
+          arr += cursor.getLong(0)
+          cursor.moveToNext()
+        }
+        arr.result()
+      }
+      new AsyncTask[Object, Unit, Unit]() {
+        var dialog: ProgressDialog = _
+
+        override def onPreExecute() = {
+          dialog = ProgressDialog.show(activity, "", "Working...", true)
+        }
+
+        def doInBackground(a: Object*) {
+          db.filterStories(ids, false)
+        }
+
+        override def onPostExecute(a: Unit) {
+          updateView()
+          activity.getListView.setSelectionAfterHeaderView()
+          dialog.dismiss()
+        }
+      }.execute()
+    }
+  }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
