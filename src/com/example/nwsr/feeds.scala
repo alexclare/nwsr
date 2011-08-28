@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
+import android.widget.ListView
 import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
@@ -24,17 +25,7 @@ class NWSRFeeds extends NewsActivity {
     setContentView(R.layout.feeds)
 
     val inflater = LayoutInflater.from(this)
-    val header = inflater.inflate(R.layout.button_add_feed, null)
-      .asInstanceOf[TextView]
-    getListView.addHeaderView(header)
-
-    val ocl = new View.OnClickListener() {
-      def onClick(v: View) {
-        showDialog(AddFeed)
-      }
-    }
-    header.setOnClickListener(ocl)
-    findViewById(android.R.id.empty).setOnClickListener(ocl)
+    getListView.addHeaderView(inflater.inflate(R.layout.button_add_feed, null))
 
     registerForContextMenu(getListView)
     cursor = db.feedView()
@@ -53,6 +44,12 @@ class NWSRFeeds extends NewsActivity {
         FeedInfo(None, getIntent.getDataString, None, None))
     }
     updateView()
+  }
+
+  override def onListItemClick(lv: ListView, v: View, pos: Int, id: Long) {
+    if (id < 0) {
+      showDialog(AddFeed)
+    }
   }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
