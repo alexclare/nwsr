@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.example.util
 
 import scala.collection.mutable.StringBuilder
 import scala.collection.mutable.ListBuffer
@@ -11,10 +11,18 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 
+class NotFeedException() extends Exception() { }
+
+case class Story(title: String, link: String)
+// For the future: Parse and store Story summary text/HTML for display
+
+case class Feed (
+  title: String, link: String, displayLink: String, etag: Option[String],
+  lastMod: Option[String], stories: Seq[Story])
 
 object Feed {
   def refresh(link: String, etag: Option[String],
-              lastModified: Option[String]): Option[Feed] = {
+              lastMod: Option[String]): Option[Feed] = {
     val url = new URL(if (link.startsWith("http://") ||
                           link.startsWith("https://")) link
                       else "http://" + link)
@@ -23,7 +31,7 @@ object Feed {
       case Some(e) => connection.setRequestProperty("If-None-Match", e)
       case None =>
     }
-    lastModified match {
+    lastMod match {
       case Some(l) => connection.setRequestProperty("If-Modified-Since", l)
       case None =>
     }
@@ -31,13 +39,17 @@ object Feed {
       val istream = connection.getInputStream()
       connection.getResponseCode match {
         case HttpURLConnection.HTTP_OK => {
-          val etag = connection.getHeaderField("ETag")
-          val lastModified = connection.getHeaderField("Last-Modified")
-          val data = FeedParse.parseFeed(istream)
-          Some(Feed(data.title, connection.getURL.toString, data.link,
-                    if (etag == null) None else Some(etag),
-                    if (lastModified == null) None else Some(lastModified),
-                    data.stories.result()))
+          val etag = connection.getHeaderField("ETag") match {
+            case null => None
+            case e => Some(e)
+          }
+          val lastMod = connection.getHeaderField("Last-Modified") match {
+            case null => None
+            case l => Some(l)
+          }
+          val feed = FeedParser.parse(istream)
+          Some(feed.copy(link=connection.getURL.toString, etag=etag,
+                         lastMod=lastMod))
         }
         case HttpURLConnection.HTTP_NOT_MODIFIED => None
         case _ => throw new NotFeedException()
@@ -48,19 +60,11 @@ object Feed {
   }
 }
 
-case class Feed (
-  title: String, link: String, displayLink: String, etag: Option[String],
-  lastModified: Option[String], stories: List[Story])
-
-case class Story(title: String, link: String)
-
-class NotFeedException() extends Exception() { }
-
 /** DOM-based RSS/Atom feed parser
  *    Could be written more easily in Scala, but there's a bug in Android
  *    involving the SAX parser it depends on that wasn't fixed until 2.2
  */
-object FeedParse {
+object FeedParser {
   sealed abstract class FeedType
   case object RSSFeed extends FeedType
   case object AtomFeed extends FeedType
@@ -113,14 +117,7 @@ object FeedParse {
     Story(title, link)
   }
 
-  class FeedData {
-    var title: String = _
-    var link: String = _
-    var stories: ListBuffer[Story] = ListBuffer.empty[Story]
-  }
-
-  def parseFeed(input: InputStream): FeedData = {
-    val result = new FeedData()
+  def parse(input: InputStream): Feed = {
     val doc = DocumentBuilderFactory.newInstance
       .newDocumentBuilder.parse(input)
     val root = doc.getDocumentElement
@@ -129,20 +126,18 @@ object FeedParse {
       case "feed" => AtomFeed
       case _ => throw new NotFeedException()
     }
-    result.title = getTextContent(root.getElementsByTagName("title").item(0))
-    result.link = feedType match {
+    val title = getTextContent(root.getElementsByTagName("title").item(0))
+    val link = feedType match {
       case RSSFeed => getTextContent(root.getElementsByTagName("link").item(0))
       case AtomFeed => root.getElementsByTagName("link").item(0).getAttributes
                         .getNamedItem("href").getNodeValue
     }
+    val stories = ListBuffer.empty[Story]
     root.getElementsByTagName(
       feedType match {
         case RSSFeed => "item"
         case AtomFeed => "entry"
-      }).foreach {
-      (story:Node) =>
-        result.stories.append(extractStory(story, feedType))
-    }
-    result
+      }).foreach((story:Node) => stories.append(extractStory(story, feedType)))
+    Feed(title, link, link, None, None, stories.result())
   }
 }

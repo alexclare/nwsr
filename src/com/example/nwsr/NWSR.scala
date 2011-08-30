@@ -20,6 +20,7 @@ import android.widget.TextView
 
 import scala.collection.mutable.ArrayBuilder
 
+import com.example.util.Story
 
 class NWSR extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
@@ -98,7 +99,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         }
 
         def doInBackground(a: Object*) {
-          db.filterStories(ids, false)
+          db.trainClassifier(ids, NegativeStory)
         }
 
         override def onPostExecute(a: Unit) {
@@ -129,7 +130,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       case R.id.open_browser => {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
-        db.filterStories(Array(info.id), true)
+        db.trainClassifier(Array(info.id), PositiveStory)
         openInBrowser(url)
         updateView()
         true
@@ -140,12 +141,12 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
             .asInstanceOf[TextView].getText.toString,
           info.targetView.findViewById(R.id.headline_link)
             .asInstanceOf[TextView].getText.toString))
-        db.filterStories(Array(info.id), true)
+        db.trainClassifier(Array(info.id), PositiveStory)
         updateView()
         true
       }
       case R.id.delete => {
-        db.filterStories(Array(info.id), false)
+        db.trainClassifier(Array(info.id), NegativeStory)
         updateView()
         false
       }

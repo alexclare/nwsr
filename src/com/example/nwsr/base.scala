@@ -18,6 +18,9 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
+import com.example.util.Feed
+import com.example.util.NotFeedException
+
 abstract class DatabaseActivity extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -92,13 +95,8 @@ abstract class NewsActivity extends DatabaseActivity {
       while (ind < total) {
         val feed = feeds(ind).asInstanceOf[FeedInfo]
         try {
-          Feed.refresh(feed.link, feed.etag, feed.lastModified) match {
-            case Some(f) => {
-              val newId = db.addFeed(f, feed.id)
-              for (story <- f.stories) {
-                db.addStory(story, newId)
-              }
-            }
+          Feed.refresh(feed.link, feed.etag, feed.lastMod) match {
+            case Some(f) => db.addFeed(f, feed.id)
             case None =>
           }
         } catch {
