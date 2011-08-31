@@ -37,8 +37,6 @@ object NWSRDatabaseHelper {
                      "title string, " +
                      "link string, " +
                      "display_link string," +
-                     "updated integer, " +
-                     // remove "updated" when moving to auto-update service
                      "etag string, " +
                      "last_modified string);")
 
@@ -113,7 +111,6 @@ class NWSRDatabase (context: Context) {
     values.put("title", feed.title)
     values.put("link", feed.link)
     values.put("display_link", feed.displayLink)
-    values.put("updated", java.lang.Long.valueOf(now))
 
     feed.etag match {
       case Some(e) => values.put("etag", e)
@@ -141,37 +138,14 @@ class NWSRDatabase (context: Context) {
     db.delete("feed", "_id = " + id, null)
   }
 
-// begin crappy feedInfo part
-// remove the "updated" part
-  def refreshLink(id: Long): FeedInfo = {
-    db.singleRow[FeedInfo](
-      "select link, etag, last_modified from feed where _id = %d".format(id)) {
-      (c: Cursor) =>
-        val etag = c.getString(1)
-        val lastMod = c.getString(2)
-        FeedInfo(Some(id), c.getString(0), if (etag == null) None else Some(etag),
-                 if (lastMod == null) None else Some(lastMod))
-    }
-  }
+  def feedsToRefresh(): Cursor = db.query(
+    "feed", Array("_id", "link", "etag", "last_modified"),
+    null, null, null, null, null)
 
-  def refreshLinks(): List[FeedInfo] = {
-    val timeAgo: Long = System.currentTimeMillis -
-      prefs.getString("min_feed_refresh", "43200000").toLong
-    val buf = ListBuffer.empty[FeedInfo]
-    db.foreach(
-      "select _id, link, etag, last_modified from feed where updated < %d"
-      .format(timeAgo)) {
-        (c: Cursor) =>
-          val etag = c.getString(2)
-          val lastMod = c.getString(3)
-          buf.append(
-            FeedInfo(Some(c.getLong(0)), c.getString(1),
-                     if (etag == null) None else Some(etag),
-                     if (lastMod == null) None else Some(lastMod)))
-      }
-    buf.result()
-  }
-// end crappy feedInfo part
+  def feedsToRefresh(id: Array[Long]): Cursor = db.rawQuery(
+    "select _id, link, etag, last_modified from feed where _id in (%s)"
+    .format(id.mkString(", ")), Array.empty[String])
+
 
   def addStory(story: Story, id: Long) {
     db.conditional(
@@ -293,8 +267,3 @@ class NWSRDatabase (context: Context) {
     db.delete("saved", "_id = " + id, null)
   }
 }
-
-
-// more crappy feedinfo
-case class FeedInfo(id: Option[Long], link: String, etag: Option[String],
-                    lastMod: Option[String])

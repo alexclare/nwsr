@@ -54,6 +54,12 @@
        android:name=".NWSRSaved"
        android:label="@string/title_saved"
        />
+    <reciever
+       android:name=".NWSRRefreshReceiver"
+       />
+    <service
+       android:name=".NWSRRefreshService"
+       />
   </application>
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-sdk

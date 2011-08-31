@@ -40,8 +40,7 @@ class NWSRFeeds extends NewsActivity {
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
-      new RetrieveFeedTask().execute(
-        FeedInfo(None, getIntent.getDataString, None, None))
+      new RetrieveFeedTask().execute(new Left(getIntent.getDataString))
     }
     updateView()
   }
@@ -70,7 +69,7 @@ class NWSRFeeds extends NewsActivity {
     item.getItemId() match {
       case R.id.refresh => {
         db.purgeOld()
-        new RetrieveFeedTask().execute(db.refreshLink(info.id))
+        new RetrieveFeedTask().execute(new Right(Array(info.id)))
         true
       }
       case R.id.open_browser => {
@@ -97,9 +96,8 @@ class NWSRFeeds extends NewsActivity {
         new DialogInterface.OnClickListener () {
           def onClick(dialog: DialogInterface, button: Int) {
             new RetrieveFeedTask().execute(
-              FeedInfo(None, layout.findViewById(R.id.add_feed_url)
-                       .asInstanceOf[EditText].getText().toString(),
-                       None, None))
+              new Left(layout.findViewById(R.id.add_feed_url)
+                       .asInstanceOf[EditText].getText().toString()))
             dialog.dismiss()
           }
         })

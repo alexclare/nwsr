@@ -21,6 +21,7 @@ import org.xml.sax.SAXParseException
 import com.example.util.Feed
 import com.example.util.NotFeedException
 
+
 abstract class DatabaseActivity extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -78,7 +79,7 @@ abstract class NewsActivity extends DatabaseActivity {
 
   /** Unfortunately, the Scala compiler doesn't generate type signatures for
    *    this class that are recognizable by the Android VM once the program is
-   *    running, hence the "Object"
+   *    running, hence the "Object" and casting
    */
   class RetrieveFeedTask extends AsyncTask[Object, Unit, Unit] {
     var dialog: ProgressDialog = _
@@ -88,31 +89,27 @@ abstract class NewsActivity extends DatabaseActivity {
         dialog = ProgressDialog.show(activity, "", "Retrieving...", true)
     }
 
-    def doInBackground(feeds: Object*) {
-      // repair variable names here -- too many "feeds", "feedinfo", "retrieve", "refresh"
-      val total = feeds.length
-      var ind = 0
-      while (ind < total) {
-        val feed = feeds(ind).asInstanceOf[FeedInfo]
-        try {
-          Feed.refresh(feed.link, feed.etag, feed.lastMod) match {
-            case Some(f) => db.addFeed(f, feed.id)
-            case None =>
+    def doInBackground(linkOrIds: Object*) {
+      linkOrIds(0).asInstanceOf[Either[String, Array[Long]]] match {
+        case Left(link) => addFeed(None, link, None, None, true)
+        case Right(ids) => {
+          val cursor = db.feedsToRefresh(ids)
+          cursor.moveToFirst()
+          while(!cursor.isAfterLast) {
+            addFeed(
+              Some(cursor.getLong(0)), cursor.getString(1),
+              cursor.getString(2) match {
+                case null => None
+                case e => Some(e)
+              },
+              cursor.getString(3) match {
+                case null => None
+                case l => Some(l)
+              }, false)
+            cursor.moveToNext()
           }
-        } catch {
-          case _ @ (_: FileNotFoundException | _: UnknownHostException |
-                    _: IOException)
-          => if (total == 1) {
-            error = FeedNotFound
-            cancel(false)
-          }
-          case _ @ (_: SAXParseException | _: NotFeedException)
-          => if (total == 1) {
-            error = FeedInvalid
-            cancel(false)
-          }
+          cursor.close()
         }
-        ind += 1
       }
     }
 
@@ -124,6 +121,28 @@ abstract class NewsActivity extends DatabaseActivity {
     override def onCancelled() {
       dialog.dismiss()
       showDialog(error)
+    }
+
+    def addFeed(id: Option[Long], link: String, etag: Option[String], lastMod: Option[String],
+                cancelOnError: Boolean) {
+      try {
+        Feed.refresh(link, etag, lastMod) match {
+          case Some(f) => db.addFeed(f, id)
+          case None =>
+        }
+      } catch {
+        case _ @ (_: FileNotFoundException | _: UnknownHostException |
+                  _: IOException)
+        => if (cancelOnError) {
+          error = FeedNotFound
+          cancel(false)
+        }
+        case _ @ (_: SAXParseException | _: NotFeedException)
+        => if (cancelOnError) {
+          error = FeedInvalid
+          cancel(false)
+        }
+      }
     }
   }
 }

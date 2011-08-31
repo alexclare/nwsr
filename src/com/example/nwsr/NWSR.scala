@@ -62,7 +62,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     item.getItemId match {
       case R.id.refresh => {
         db.purgeOld()
-        new RetrieveFeedTask().execute(db.refreshLinks():_*)
+        startService(new Intent(this, classOf[NWSRRefreshService]))
         true
       }
       case R.id.feeds => {
