@@ -86,14 +86,14 @@ abstract class NewsActivity extends DatabaseActivity {
     var error: Int = 0
 
     override def onPreExecute() {
-        dialog = ProgressDialog.show(activity, "", "Retrieving...", true)
+      dialog = ProgressDialog.show(activity, "", "Retrieving...", true)
     }
 
-    def doInBackground(linkOrIds: Object*) {
-      linkOrIds(0).asInstanceOf[Either[String, Array[Long]]] match {
+    def doInBackground(linkOrId: Object*) {
+      linkOrId(0).asInstanceOf[Either[String, Option[Long]]] match {
         case Left(link) => addFeed(None, link, None, None, true)
-        case Right(ids) => {
-          val cursor = db.feedsToRefresh(ids)
+        case Right(id) => {
+          val cursor = db.feedsToRefresh(id)
           cursor.moveToFirst()
           while(!cursor.isAfterLast) {
             addFeed(
@@ -123,8 +123,8 @@ abstract class NewsActivity extends DatabaseActivity {
       showDialog(error)
     }
 
-    def addFeed(id: Option[Long], link: String, etag: Option[String], lastMod: Option[String],
-                cancelOnError: Boolean) {
+    def addFeed(id: Option[Long], link: String, etag: Option[String],
+                lastMod: Option[String], cancelOnError: Boolean) {
       try {
         Feed.refresh(link, etag, lastMod) match {
           case Some(f) => db.addFeed(f, id)

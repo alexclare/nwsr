@@ -138,13 +138,14 @@ class NWSRDatabase (context: Context) {
     db.delete("feed", "_id = " + id, null)
   }
 
-  def feedsToRefresh(): Cursor = db.query(
-    "feed", Array("_id", "link", "etag", "last_modified"),
-    null, null, null, null, null)
-
-  def feedsToRefresh(id: Array[Long]): Cursor = db.rawQuery(
-    "select _id, link, etag, last_modified from feed where _id in (%s)"
-    .format(id.mkString(", ")), Array.empty[String])
+  def feedsToRefresh(id: Option[Long]): Cursor = id match {
+    case None => db.query(
+      "feed", Array("_id", "link", "etag", "last_modified"),
+      null, null, null, null, null)
+    case Some(id) => db.rawQuery(
+      "select _id, link, etag, last_modified from feed where _id = %d"
+      .format(id), Array.empty[String])
+  }
 
 
   def addStory(story: Story, id: Long) {

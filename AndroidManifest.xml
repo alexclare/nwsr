@@ -54,9 +54,6 @@
        android:name=".NWSRSaved"
        android:label="@string/title_saved"
        />
-    <reciever
-       android:name=".NWSRRefreshReceiver"
-       />
     <service
        android:name=".NWSRRefreshService"
        />

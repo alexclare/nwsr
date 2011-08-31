@@ -69,7 +69,7 @@ class NWSRFeeds extends NewsActivity {
     item.getItemId() match {
       case R.id.refresh => {
         db.purgeOld()
-        new RetrieveFeedTask().execute(new Right(Array(info.id)))
+        new RetrieveFeedTask().execute(new Right(Some(info.id)))
         true
       }
       case R.id.open_browser => {

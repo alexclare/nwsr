@@ -20,10 +20,10 @@
 
     <string name="title_preferences">NWSR - Settings</string>
     <string name="prefs_stories_per_page_title">Headlines per page</string>
-    <string name="prefs_min_feed_refresh_title">Mark feeds stale after</string>
-    <string name="prefs_max_story_age_title">Mark headlines old after</string>
     <string name="prefs_stories_per_page_summary"> </string>
-    <string name="prefs_min_feed_refresh_summary">Only refresh stale feeds</string>
+    <string name="prefs_feed_refresh_rate_title">Feed refresh rate</string>
+    <string name="prefs_feed_refresh_rate_summary">Automatically refresh feeds</string>
+    <string name="prefs_max_story_age_title">Mark headlines old after</string>
     <string name="prefs_max_story_age_summary">Discard old headlines on refresh</string>
     <string name="prefs_miscellaneous_title">Miscellaneous</string>
     <string name="prefs_license_title">License</string>
