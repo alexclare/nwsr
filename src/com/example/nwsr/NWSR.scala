@@ -91,21 +91,12 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         }
         arr.result()
       }
+      db.hideStories(ids)
+      updateView()
+      activity.getListView.setSelectionAfterHeaderView()
       new AsyncTask[Object, Unit, Unit]() {
-        var dialog: ProgressDialog = _
-
-        override def onPreExecute() = {
-          dialog = ProgressDialog.show(activity, "", "Working...", true)
-        }
-
         def doInBackground(a: Object*) {
           db.trainClassifier(ids, NegativeStory)
-        }
-
-        override def onPostExecute(a: Unit) {
-          updateView()
-          activity.getListView.setSelectionAfterHeaderView()
-          dialog.dismiss()
         }
       }.execute()
     }

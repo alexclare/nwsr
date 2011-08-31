@@ -30,13 +30,14 @@ object NWSRDatabaseHelper {
                        "link string, " +
                        "weight real, " +
                        "updated integer, " +
+                       "show integer, " +
                        "feed integer references feed);")
 
   val createFeeds = ("create table feed (" +
                      "_id integer primary key, " +
                      "title string, " +
                      "link string, " +
-                     "display_link string," +
+                     "display_link string, " +
                      "etag string, " +
                      "last_modified string);")
 
@@ -92,8 +93,9 @@ class NWSRDatabase (context: Context) {
 
   def storyView(): Cursor = {
     val limit = prefs.getString("stories_per_page", "20")
-    db.query("story", Array("_id", "title", "link"),
-             null, null, null, null, "weight desc", limit)
+    val query = "select _id, title, link from story where show = 1 " +
+                "order by weight desc limit %s"
+    db.rawQuery(query.format(limit), Array.empty[String])
   }
 
   def feedView(): Cursor = db.query(
@@ -167,11 +169,19 @@ class NWSRDatabase (context: Context) {
 
         values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))
+
+        values.put("show", java.lang.Integer.valueOf(1))
         values.put("feed", java.lang.Long.valueOf(id))
 
         db.insert("story", null, values)
         db.insert("seen", null, seen) 
       }
+  }
+
+  def hideStories(ids: Array[Long]) {
+    val values = new ContentValues()
+    values.put("show", java.lang.Integer.valueOf(0))
+    db.update("story", values, "_id in (%s)".format(ids.mkString(", ")), null)
   }
 
   def purgeOld() {
