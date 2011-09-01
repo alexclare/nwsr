@@ -1,5 +1,8 @@
 package com.example.nwsr
 
+import android.app.IntentService
+import android.content.Intent
+
 object Classifier {
   val punctuation = "\\p{Punct}+".r
   val commonWords = Set(
@@ -20,3 +23,23 @@ object Classifier {
 sealed abstract class StoryType
 case object PositiveStory extends StoryType
 case object NegativeStory extends StoryType
+
+
+class NWSRTrainingService extends IntentService ("NWSRTrainingService") {
+  var db: NWSRDatabase = _
+
+  override def onCreate() {
+    super.onCreate()
+    db = new NWSRDatabase(this).open()
+  }
+
+  override def onDestroy() {
+    super.onDestroy()
+    db.close()
+  }
+
+  override def onHandleIntent(intent: Intent) {
+    val ids = intent.getLongArrayExtra("ids").asInstanceOf[Array[Long]]
+    db.trainClassifier(ids, NegativeStory)
+  }
+}

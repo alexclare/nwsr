@@ -57,6 +57,9 @@
     <service
        android:name=".NWSRRefreshService"
        />
+    <service
+       android:name=".NWSRTrainingService"
+       />
     <receiver
        android:name=".NWSRBootReceiver">
       <intent-filter>

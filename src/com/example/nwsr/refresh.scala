@@ -18,8 +18,6 @@ import org.xml.sax.SAXParseException
 import com.example.util.Feed
 import com.example.util.NotFeedException
 
-import android.util.Log
-
 class NWSRRefreshService extends IntentService ("NWSRRefreshService") {
   var db: NWSRDatabase = _
 
@@ -34,7 +32,6 @@ class NWSRRefreshService extends IntentService ("NWSRRefreshService") {
   }
 
   override def onHandleIntent(intent: Intent) {
-    Log.v("refreshed", "" + System.currentTimeMillis)
     if (getSystemService(Context.CONNECTIVITY_SERVICE)
         .asInstanceOf[ConnectivityManager].getBackgroundDataSetting) {
       val cursor = db.feedsToRefresh(None)

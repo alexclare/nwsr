@@ -94,11 +94,9 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       db.hideStories(ids)
       updateView()
       activity.getListView.setSelectionAfterHeaderView()
-      new AsyncTask[Object, Unit, Unit]() {
-        def doInBackground(a: Object*) {
-          db.trainClassifier(ids, NegativeStory)
-        }
-      }.execute()
+      val intent = new Intent(this, classOf[NWSRTrainingService])
+      intent.putExtra("ids", ids)
+      startService(intent)
     }
   }
 
