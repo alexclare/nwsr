@@ -63,16 +63,31 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
   import NWSRDatabaseHelper._
 
   override def onCreate(db: SQLiteDatabase) {
-    db.execSQL(createStories)
-    db.execSQL(createFeeds)
-    db.execSQL(createWords)
-    db.execSQL(createSeen)
-    db.execSQL(createSaved)
+    db.exclusiveTransaction {
+      db.execSQL(createStories)
+      db.execSQL(createFeeds)
+      db.execSQL(createWords)
+      db.execSQL(createSeen)
+      db.execSQL(createSaved)
+    }
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
-    // Add code to update the database when version 2 comes along
+/*
+    if (oldVer == 1) {
+      // plan: move tables to old_table, recreate tables, copy rows over, delete old tables
+      // story: discard "pos: real", "neg: real" columns
+      //        add "show: integer=1" column
+      // feed: discard "updated: integer" column
+      db.execSQL(createStories)
+      db.execSQL(createFeeds)
+      // word is unchanged
+      // seen is unchanged
+      // saved is unchanged
+    }
+*/
   }
+
 }
 
 class NWSRDatabase (context: Context) {
@@ -123,21 +138,25 @@ class NWSRDatabase (context: Context) {
       case None =>
     }
 
-    val feedId = id match {
-      case None => db.insert("feed", null, values)
-      case Some(i) => { 
-        db.update("feed", values, "_id = " + i, Array.empty[String])
-        i
+    db.exclusiveTransaction {
+      val feedId = id match {
+        case None => db.insert("feed", null, values)
+        case Some(i) => { 
+          db.update("feed", values, "_id = " + i, Array.empty[String])
+          i
+        }
       }
-    }
-    for (story <- feed.stories) {
-      addStory(story, feedId)
+      for (story <- feed.stories) {
+        addStory(story, feedId)
+      }
     }
   }
 
   def deleteFeed(id: Long) {
-    db.delete("story", "feed = " + id, null)
-    db.delete("feed", "_id = " + id, null)
+    db.exclusiveTransaction {
+      db.delete("story", "feed = " + id, null)
+      db.delete("feed", "_id = " + id, null)
+    }
   }
 
   def feedsToRefresh(id: Option[Long]): Cursor = id match {
@@ -153,7 +172,7 @@ class NWSRDatabase (context: Context) {
   def addStory(story: Story, id: Long) {
     db.conditional(
       "select 1 where exists (select null from seen where title = %d)"
-      .format(story.title.hashCode())) () { () =>
+      .format(story.title.hashCode())) () {
         // Otherwise clause: add the story if the title hasn't been seen
         val values = new ContentValues()
         val seen = new ContentValues()
@@ -187,8 +206,10 @@ class NWSRDatabase (context: Context) {
   def purgeOld() {
     val timeAgo: Long = System.currentTimeMillis -
       prefs.getString("max_story_age", "604800000").toLong
-    db.execSQL("delete from story where updated < %d".format(timeAgo))
-    db.execSQL("delete from seen where updated < %d".format(timeAgo))
+    db.exclusiveTransaction {
+      db.execSQL("delete from story where updated < %d".format(timeAgo))
+      db.execSQL("delete from seen where updated < %d".format(timeAgo))
+    }
   }
 
   def classifyStory(title: String): (Double, Double) = {
@@ -236,34 +257,36 @@ class NWSRDatabase (context: Context) {
         }
     }
 
-    for (word <- words.keySet) {
-      val values = new ContentValues()
-      db.conditional(
-        "select _id, %s from word where repr = '%s'"
-        .format(thisClass, word)) {
-          (c: Cursor) =>
-          values.put(thisClass,
-                     java.lang.Long.valueOf(c.getLong(1) + words(word)))
-          db.update("word", values, "_id = ?",
-                    Array(c.getLong(0).toString))
-        } { () =>
-          // The "put" method here truncates leading 0s on string
-          //    representations of numbers, e.g. converting "000" to "0"
-          values.put("repr", word)
-          values.put(thisClass, java.lang.Long.valueOf(words(word)))
-          values.put(otherClass, java.lang.Long.valueOf(0))
-          db.insert("word", null, values)
-        }
-    }
+    db.exclusiveTransaction {
+      for (word <- words.keySet) {
+        val values = new ContentValues()
+        db.conditional(
+          "select _id, %s from word where repr = '%s'"
+          .format(thisClass, word)) {
+            (c: Cursor) =>
+              values.put(thisClass,
+                         java.lang.Long.valueOf(c.getLong(1) + words(word)))
+            db.update("word", values, "_id = ?",
+                      Array(c.getLong(0).toString))
+          } {
+            // The "put" method here truncates leading 0s on string
+            //    representations of numbers, e.g. converting "000" to "0"
+            values.put("repr", word)
+             values.put(thisClass, java.lang.Long.valueOf(words(word)))
+             values.put(otherClass, java.lang.Long.valueOf(0))
+             db.insert("word", null, values)
+           }
+      }
 
-    val headlineKey = storyType match {
-      case PositiveStory => "positive_headline_count"
-      case NegativeStory => "negative_headline_count"
-    }
-    editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
-    editor.commit()
+      val headlineKey = storyType match {
+        case PositiveStory => "positive_headline_count"
+        case NegativeStory => "negative_headline_count"
+      }
+      editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
+      editor.commit()
 
-    db.execSQL("delete from story where _id in (" + idString + ")")
+      db.execSQL("delete from story where _id in (" + idString + ")")
+    }
   }
 
 

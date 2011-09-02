@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteDatabase
  *    execution based on the presence or absence of a row, and iterating over
  *    the results of a query.
  *
- * The cursor representing the query is closed before returning to the caller.
+ *  The cursor representing the query is closed before returning to the caller.
  */
 
 object RichDatabase {
@@ -26,13 +26,13 @@ class RichDatabase(db: SQLiteDatabase) {
 
   def conditional(query: String)
   (exists: (Cursor => Unit) = { (c:Cursor) => })
-  (otherwise: () => Unit = { () => }) {
+  (otherwise: => Unit = { }) {
     val cursor = db.rawQuery(query, Array.empty[String])
     if (cursor.getCount > 0) {
       cursor.moveToFirst()
       exists(cursor)
     } else {
-      otherwise()
+      otherwise
     }
     cursor.close()
   }
@@ -45,5 +45,15 @@ class RichDatabase(db: SQLiteDatabase) {
       cursor.moveToNext()
     }
     cursor.close()
+  }
+
+  def exclusiveTransaction(fn: => Unit) {
+    db.beginTransaction()
+    try {
+      fn
+      db.setTransactionSuccessful()
+    } finally {
+      db.endTransaction()
+    }
   }
 }
