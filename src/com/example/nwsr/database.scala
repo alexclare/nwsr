@@ -22,7 +22,7 @@ import com.example.util.RichDatabase._
 
 object NWSRDatabaseHelper {
   val name = "nwsr.db"
-  val version = 1
+  val version = 2
 
   val createStories = ("create table story (" +
                        "_id integer primary key, " +
@@ -73,21 +73,42 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
-/*
     if (oldVer == 1) {
-      // plan: move tables to old_table, recreate tables, copy rows over, delete old tables
-      // story: discard "pos: real", "neg: real" columns
-      //        add "show: integer=1" column
-      // feed: discard "updated: integer" column
-      db.execSQL(createStories)
-      db.execSQL(createFeeds)
-      // word is unchanged
-      // seen is unchanged
-      // saved is unchanged
-    }
-*/
-  }
+      db.exclusiveTransaction {
+        // drop a few columns from story and one from feed between 0.1.0 and 0.2.x
+        db.execSQL("alter table story rename to old_story")
+        db.execSQL(createStories)
+        db.foreach("select _id, title, link, weight, updated, feed from old_story") {
+          (c: Cursor) =>
+          val values = new ContentValues()
+          values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
+          values.put("title", c.getString(1))
+          values.put("link", c.getString(2))
+          values.put("weight", c.getDouble(3))
+          values.put("updated", java.lang.Long.valueOf(c.getLong(4)))
+          values.put("show", java.lang.Integer.valueOf(1))
+          values.put("feed", java.lang.Long.valueOf(c.getLong(5)))
+          db.insert("story", null, values)
+        }
+        db.execSQL("drop table old_story")
 
+        db.execSQL("alter table feed rename to old_feed")
+        db.execSQL(createFeeds)
+        db.foreach("select _id, title, link, display_link, etag, last_modified from old_feed") {
+          (c: Cursor) =>
+          val values = new ContentValues()
+          values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
+          values.put("title", c.getString(1))
+          values.put("link", c.getString(2))
+          values.put("display_link", c.getString(3))
+          values.put("etag", c.getString(4))
+          values.put("last_modified", c.getString(5))
+          db.insert("feed", null, values)
+        }
+        db.execSQL("drop table old_feed")
+      }
+    }
+  }
 }
 
 class NWSRDatabase (context: Context) {
