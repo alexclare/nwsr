@@ -1,6 +1,7 @@
 package com.example.nwsr
 
 import android.os.Bundle
+import android.content.Intent
 import android.view.ContextMenu
 import android.view.Menu
 import android.view.MenuItem
@@ -8,6 +9,8 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
+
+import scala.collection.mutable.ListBuffer
 
 class NWSRSaved extends DatabaseActivity {
   override def onCreate(savedInstanceState: Bundle) {
@@ -31,6 +34,19 @@ class NWSRSaved extends DatabaseActivity {
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId match {
       case R.id.share => {
+        val text = {
+          val result = ListBuffer.empty[String]
+          cursor.moveToFirst()
+          while (!cursor.isAfterLast) {
+            result.append(cursor.getString(2))
+            cursor.moveToNext()
+          }
+          result.mkString(";")
+        }
+        val intent = new Intent(Intent.ACTION_SEND)
+        intent.setType("text/plain")
+        intent.putExtra(Intent.EXTRA_TEXT, text)
+        startActivity(Intent.createChooser(intent, "Share via"))
         true
       }
       case R.id.delete => {
