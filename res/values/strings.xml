@@ -32,4 +32,6 @@
 
     <string name="title_saved">NWSR - Saved Items</string>
     <string name="saved_empty">No saved items</string>
+    <string name="menu_share_all">Share All</string>
+    <string name="menu_delete_all">Delete All</string>
 </resources>

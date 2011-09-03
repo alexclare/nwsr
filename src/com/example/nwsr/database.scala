@@ -318,7 +318,10 @@ class NWSRDatabase (context: Context) {
     db.insert("saved", null, values)
   }
 
-  def deleteSaved(id: Long) {
-    db.delete("saved", "_id = " + id, null)
+  def deleteSaved(id: Option[Long]) {
+    id match {
+      case None => db.delete("saved", null, null)
+      case Some(id) => db.delete("saved", "_id = " + id, null)
+    }
   }
 }

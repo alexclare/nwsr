@@ -2,12 +2,12 @@ package com.example.nwsr
 
 import android.os.Bundle
 import android.view.ContextMenu
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
-
 
 class NWSRSaved extends DatabaseActivity {
   override def onCreate(savedInstanceState: Bundle) {
@@ -21,6 +21,24 @@ class NWSRSaved extends DatabaseActivity {
       Array(R.id.headline_title, R.id.headline_link))
     setListAdapter(adapter)
   }
+
+  override def onCreateOptionsMenu(menu: Menu): Boolean = {
+    val inflater = getMenuInflater()
+    inflater.inflate(R.menu.saved, menu)
+    true
+  }
+
+  override def onOptionsItemSelected(item: MenuItem): Boolean =
+    item.getItemId match {
+      case R.id.share => {
+        true
+      }
+      case R.id.delete => {
+        db.deleteSaved(None)
+        updateView()
+        true
+      }
+    }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {
@@ -42,7 +60,7 @@ class NWSRSaved extends DatabaseActivity {
         true
       }
       case R.id.delete => {
-        db.deleteSaved(info.id)
+        db.deleteSaved(Some(info.id))
         updateView()
         true
       }
