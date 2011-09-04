@@ -15,8 +15,6 @@
     <string name="title_feeds">NWSR - News Feeds</string>
     <string name="feeds_add_text">Add new feed...</string>
     <string name="menu_delete">Delete</string>
-    <string name="add_feeds_button_ok">OK</string>
-    <string name="add_feeds_button_cancel">Cancel</string>
 
     <string name="title_preferences">NWSR - Settings</string>
     <string name="prefs_stories_per_page_title">Headlines per page</string>
@@ -34,4 +32,10 @@
     <string name="saved_empty">No saved items</string>
     <string name="menu_share_all">Share All</string>
     <string name="menu_delete_all">Delete All</string>
+
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_sure">Are you sure?</string>
+    <string name="dialog_yes">Yes</string>
+    <string name="dialog_no">No</string>
 </resources>

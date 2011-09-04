@@ -1,7 +1,10 @@
 package com.example.nwsr
 
-import android.os.Bundle
+import android.app.AlertDialog
+import android.app.Dialog
+import android.content.DialogInterface
 import android.content.Intent
+import android.os.Bundle
 import android.view.ContextMenu
 import android.view.Menu
 import android.view.MenuItem
@@ -13,6 +16,8 @@ import android.widget.TextView
 import scala.collection.mutable.ListBuffer
 
 class NWSRSaved extends DatabaseActivity {
+  val DeleteAll: Int = 2
+
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.saved)
@@ -34,24 +39,27 @@ class NWSRSaved extends DatabaseActivity {
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId match {
       case R.id.share => {
-        val text = {
-          val result = ListBuffer.empty[String]
-          cursor.moveToFirst()
-          while (!cursor.isAfterLast) {
-            result.append(cursor.getString(2))
-            cursor.moveToNext()
+        if (cursor.getCount > 0) {
+          val text = {
+            val result = ListBuffer.empty[String]
+            cursor.moveToFirst()
+            while (!cursor.isAfterLast) {
+              result.append(cursor.getString(2))
+              cursor.moveToNext()
+            }
+            result.mkString(";")
           }
-          result.mkString(";")
+          val intent = new Intent(Intent.ACTION_SEND)
+          intent.setType("text/plain")
+          intent.putExtra(Intent.EXTRA_TEXT, text)
+          startActivity(Intent.createChooser(intent, "Share via"))
         }
-        val intent = new Intent(Intent.ACTION_SEND)
-        intent.setType("text/plain")
-        intent.putExtra(Intent.EXTRA_TEXT, text)
-        startActivity(Intent.createChooser(intent, "Share via"))
         true
       }
       case R.id.delete => {
-        db.deleteSaved(None)
-        updateView()
+        if (cursor.getCount > 0) {
+          showDialog(DeleteAll)
+        }
         true
       }
     }
@@ -82,6 +90,30 @@ class NWSRSaved extends DatabaseActivity {
       }
       case _ => super.onContextItemSelected(item)
     }
+  }
+
+  override def onCreateDialog(id: Int): Dialog = id match {
+    case DeleteAll => {
+      val builder = new AlertDialog.Builder(this)
+      builder.setMessage(R.string.dialog_sure)
+      builder.setPositiveButton(
+        R.string.dialog_yes, new DialogInterface.OnClickListener() {
+          def onClick(dialog: DialogInterface, button: Int) {
+            db.deleteSaved(None)
+            updateView()
+            dialog.dismiss()
+          }
+        })
+      builder.setNegativeButton(
+        R.string.dialog_no, new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, button: Int) {
+          dialog.dismiss()
+        }
+      })
+      builder.setTitle(R.string.menu_delete_all)
+      builder.create()
+    }
+    case _ => super.onCreateDialog(id)
   }
 }
 

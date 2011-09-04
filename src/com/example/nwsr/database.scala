@@ -159,17 +159,19 @@ class NWSRDatabase (context: Context) {
       case None =>
     }
 
-    db.exclusiveTransaction {
-      val feedId = id match {
-        case None => db.insert("feed", null, values)
-        case Some(i) => { 
-          db.update("feed", values, "_id = " + i, Array.empty[String])
-          i
-        }
+    /* This would be a good place for a wrapped transaction, but addStory
+     *   involves too much processing (a call to classifyStory) for the
+     *   transaction to be exclusive
+     */
+    val feedId = id match {
+      case None => db.insert("feed", null, values)
+      case Some(i) => { 
+        db.update("feed", values, "_id = " + i, Array.empty[String])
+        i
       }
-      for (story <- feed.stories) {
-        addStory(story, feedId)
-      }
+    }
+    for (story <- feed.stories) {
+      addStory(story, feedId)
     }
   }
 
@@ -278,36 +280,35 @@ class NWSRDatabase (context: Context) {
         }
     }
 
-    db.exclusiveTransaction {
-      for (word <- words.keySet) {
-        val values = new ContentValues()
-        db.conditional(
-          "select _id, %s from word where repr = '%s'"
-          .format(thisClass, word)) {
-            (c: Cursor) =>
-              values.put(thisClass,
-                         java.lang.Long.valueOf(c.getLong(1) + words(word)))
-            db.update("word", values, "_id = ?",
-                      Array(c.getLong(0).toString))
-          } {
-            // The "put" method here truncates leading 0s on string
-            //    representations of numbers, e.g. converting "000" to "0"
-            values.put("repr", word)
-             values.put(thisClass, java.lang.Long.valueOf(words(word)))
-             values.put(otherClass, java.lang.Long.valueOf(0))
-             db.insert("word", null, values)
-           }
-      }
-
-      val headlineKey = storyType match {
-        case PositiveStory => "positive_headline_count"
-        case NegativeStory => "negative_headline_count"
-      }
-      editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
-      editor.commit()
-
-      db.execSQL("delete from story where _id in (" + idString + ")")
+    // Another spot where a wrapped non-exclusive transaction would be helpful
+    for (word <- words.keySet) {
+      val values = new ContentValues()
+      db.conditional(
+        "select _id, %s from word where repr = '%s'"
+        .format(thisClass, word)) {
+          (c: Cursor) =>
+            values.put(thisClass,
+                       java.lang.Long.valueOf(c.getLong(1) + words(word)))
+          db.update("word", values, "_id = ?",
+                    Array(c.getLong(0).toString))
+        } {
+          // The "put" method here truncates leading 0s on string
+          //    representations of numbers, e.g. converting "000" to "0"
+          values.put("repr", word)
+          values.put(thisClass, java.lang.Long.valueOf(words(word)))
+          values.put(otherClass, java.lang.Long.valueOf(0))
+          db.insert("word", null, values)
+        }
     }
+
+    val headlineKey = storyType match {
+      case PositiveStory => "positive_headline_count"
+      case NegativeStory => "negative_headline_count"
+    }
+    editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
+    editor.commit()
+
+    db.execSQL("delete from story where _id in (" + idString + ")")
   }
 
 

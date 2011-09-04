@@ -92,7 +92,7 @@ class NWSRFeeds extends NewsActivity {
       val inflater = LayoutInflater.from(this)
       val layout = inflater.inflate(R.layout.add_feed, null)
       builder.setPositiveButton(
-        R.string.add_feeds_button_ok,
+        R.string.dialog_ok,
         new DialogInterface.OnClickListener () {
           def onClick(dialog: DialogInterface, button: Int) {
             new RetrieveFeedTask().execute(
@@ -102,7 +102,7 @@ class NWSRFeeds extends NewsActivity {
           }
         })
       builder.setNegativeButton(
-        R.string.add_feeds_button_cancel,
+        R.string.dialog_cancel,
         new DialogInterface.OnClickListener () {
           def onClick(dialog: DialogInterface, button: Int) {
             dialog.dismiss()

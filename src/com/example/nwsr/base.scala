@@ -44,6 +44,7 @@ abstract class DatabaseActivity extends ListActivity {
   }
 
   def openInBrowser(url: String) {
+    // fix "naked protocol problem"
     startActivity(new Intent(Intent.ACTION_VIEW)
                   .setData(Uri.parse(if (url.startsWith("http://")) url
                                      else "http://" + url)))
