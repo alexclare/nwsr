@@ -8,7 +8,7 @@
      android:label="@string/app_name"
      android:icon="@drawable/ic_launcher">
     <activity
-       android:name=".NWSR"
+       android:name=".Headlines"
        android:label="@string/app_name">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
@@ -16,7 +16,7 @@
       </intent-filter>
     </activity>
     <activity
-       android:name=".NWSRFeeds"
+       android:name=".NewsFeeds"
        android:label="@string/title_feeds">
       <intent-filter>
         <action android:name="android.intent.action.VIEW" />
@@ -39,29 +39,25 @@
       </intent-filter>
     </activity>
     <activity
-       android:name=".NWSRAddFeed"
-       android:label="@string/feeds_add_text"
-       />
-    <activity
-       android:name=".NWSRSettings"
+       android:name=".Settings"
        android:label="@string/title_preferences"
        />
     <activity
-       android:name=".NWSRLicense"
+       android:name=".License"
        android:label="@string/title_license"
        />
     <activity
-       android:name=".NWSRSaved"
+       android:name=".SavedItems"
        android:label="@string/title_saved"
        />
     <service
-       android:name=".NWSRRefreshService"
+       android:name=".RefreshService"
        />
     <service
-       android:name=".NWSRTrainingService"
+       android:name=".TrainingService"
        />
     <receiver
-       android:name=".NWSRBootReceiver">
+       android:name=".BootReceiver">
       <intent-filter>
         <action android:name="android.intent.action.BOOT_COMPLETED" />
       </intent-filter>

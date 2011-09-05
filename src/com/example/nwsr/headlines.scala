@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuilder
 
 import com.example.util.Story
 
-class NWSR extends NewsActivity
+class Headlines extends NewsActivity
 with SharedPreferences.OnSharedPreferenceChangeListener {
   activity =>
 
@@ -66,15 +66,15 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         true
       }
       case R.id.feeds => {
-        startActivity(new Intent(this, classOf[NWSRFeeds]))
+        startActivity(new Intent(this, classOf[NewsFeeds]))
         true
       }
       case R.id.saved => {
-        startActivity(new Intent(this, classOf[NWSRSaved]))
+        startActivity(new Intent(this, classOf[SavedItems]))
         true
       }
       case R.id.settings => {
-        startActivity(new Intent(this, classOf[NWSRSettings]))
+        startActivity(new Intent(this, classOf[Settings]))
         true
       }
       case _ => super.onOptionsItemSelected(item)

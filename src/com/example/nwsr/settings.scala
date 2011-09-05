@@ -11,7 +11,7 @@ import android.os.Bundle
 import android.widget.ScrollView
 import android.webkit.WebView
 
-class NWSRSettings extends PreferenceActivity {
+class Settings extends PreferenceActivity {
   activity =>
 
   override def onCreate(savedInstanceState: Bundle) {
@@ -23,7 +23,7 @@ class NWSRSettings extends PreferenceActivity {
       val manager = activity.getSystemService(Context.ALARM_SERVICE)
         .asInstanceOf[AlarmManager]
       val service = PendingIntent.getService(
-        activity, 0, new Intent(activity, classOf[NWSRRefreshService]),
+        activity, 0, new Intent(activity, classOf[RefreshService]),
         PendingIntent.FLAG_UPDATE_CURRENT)
       val interval = System.currentTimeMillis + 3600000
 
@@ -48,14 +48,14 @@ class NWSRSettings extends PreferenceActivity {
     findPreference("settings_license")
     .setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
       def onPreferenceClick(p: Preference): Boolean = {
-        startActivity(new Intent(activity, classOf[NWSRLicense]))
+        startActivity(new Intent(activity, classOf[License]))
         true
       }
     })
   }
 }
 
-class NWSRLicense extends Activity {
+class License extends Activity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     val view = new ScrollView(this)

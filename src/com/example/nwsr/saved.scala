@@ -15,7 +15,7 @@ import android.widget.TextView
 
 import scala.collection.mutable.ListBuffer
 
-class NWSRSaved extends DatabaseActivity {
+class SavedItems extends DatabaseActivity {
   val DeleteAll: Int = 2
 
   override def onCreate(savedInstanceState: Bundle) {

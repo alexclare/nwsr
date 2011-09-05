@@ -18,7 +18,7 @@ import org.xml.sax.SAXParseException
 import com.example.util.Feed
 import com.example.util.NotFeedException
 
-class NWSRRefreshService extends IntentService ("NWSRRefreshService") {
+class RefreshService extends IntentService ("NWSRRefreshService") {
   var db: NWSRDatabase = _
 
   override def onCreate() {
@@ -63,12 +63,12 @@ class NWSRRefreshService extends IntentService ("NWSRRefreshService") {
   }
 }
 
-class NWSRBootReceiver extends BroadcastReceiver {
+class BootReceiver extends BroadcastReceiver {
   override def onReceive(context: Context, intent: Intent) {
     val manager = context.getSystemService(Context.ALARM_SERVICE)
       .asInstanceOf[AlarmManager]
     val service = PendingIntent.getService(
-      context, 0, new Intent(context, classOf[NWSRRefreshService]),
+      context, 0, new Intent(context, classOf[RefreshService]),
       PendingIntent.FLAG_UPDATE_CURRENT)
     val interval = System.currentTimeMillis + 3600000
     val prefs = PreferenceManager.getDefaultSharedPreferences(context)

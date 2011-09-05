@@ -15,7 +15,7 @@ import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
 
-class NWSRFeeds extends NewsActivity {
+class NewsFeeds extends NewsActivity {
   activity =>
 
   val AddFeed: Int = 2

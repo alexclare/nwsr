@@ -9,6 +9,8 @@ import android.database.sqlite.SQLiteDatabase
  *    the results of a query.
  *
  *  The cursor representing the query is closed before returning to the caller.
+ *
+ *  Also includes a utility method to wrap around exclusive transaction blocks.
  */
 
 object RichDatabase {
