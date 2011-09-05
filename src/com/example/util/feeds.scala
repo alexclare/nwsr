@@ -23,8 +23,7 @@ case class Feed (
 object Feed {
   def refresh(link: String, etag: Option[String],
               lastMod: Option[String]): Option[Feed] = {
-    val url = new URL(if (link.startsWith("http://") ||
-                          link.startsWith("https://")) link
+    val url = new URL(if (link.contains("://")) link
                       else "http://" + link)
     val connection = url.openConnection().asInstanceOf[HttpURLConnection]
     etag match {
