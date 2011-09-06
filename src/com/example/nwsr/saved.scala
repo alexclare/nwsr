@@ -15,9 +15,9 @@ import android.widget.TextView
 
 import scala.collection.mutable.ListBuffer
 
-class SavedItems extends DatabaseActivity {
-  val DeleteAll: Int = 2
+import DialogType._
 
+class SavedItems extends DatabaseActivity {
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.saved)
@@ -58,7 +58,7 @@ class SavedItems extends DatabaseActivity {
       }
       case R.id.delete => {
         if (cursor.getCount > 0) {
-          showDialog(DeleteAll)
+          showDialog(DeleteAllSaved)
         }
         true
       }
@@ -92,8 +92,8 @@ class SavedItems extends DatabaseActivity {
     }
   }
 
-  override def onCreateDialog(id: Int): Dialog = id match {
-    case DeleteAll => {
+  override def onCreateDialog(id: Int): Dialog = DialogType(id) match {
+    case DeleteAllSaved => {
       val builder = new AlertDialog.Builder(this)
       builder.setMessage(R.string.dialog_sure)
       builder.setPositiveButton(

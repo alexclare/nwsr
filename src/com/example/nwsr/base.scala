@@ -22,6 +22,14 @@ import com.example.util.Feed
 import com.example.util.NotFeedException
 
 
+object DialogType extends Enumeration {
+  type DialogType = Value
+  val FeedNotFound, FeedInvalid, AddFeed, DeleteAllSaved = Value
+  implicit def toInt(dlg: DialogType): Int = dlg.id
+}
+import DialogType._
+
+
 abstract class DatabaseActivity extends ListActivity {
   var db: NWSRDatabase = _
   var cursor: Cursor = _
@@ -54,10 +62,7 @@ abstract class DatabaseActivity extends ListActivity {
 abstract class NewsActivity extends DatabaseActivity {
   activity =>
 
-  val FeedNotFound: Int = 0
-  val FeedInvalid: Int = 1
-
-  override def onCreateDialog(id: Int): Dialog = id match {
+  override def onCreateDialog(id: Int): Dialog = DialogType(id) match {
     case (FeedNotFound | FeedInvalid) => {
       val builder = new AlertDialog.Builder(this)
       builder.setCancelable(false)
@@ -67,7 +72,7 @@ abstract class NewsActivity extends DatabaseActivity {
         }
       })
       builder.setTitle("Retrieve feed error")
-      builder.setMessage(id match {
+      builder.setMessage(DialogType(id) match {
         case FeedNotFound => "Could not load URL"
         case FeedInvalid => "Not a valid RSS/Atom feed"
         case _ => "Unknown Error"
@@ -83,7 +88,7 @@ abstract class NewsActivity extends DatabaseActivity {
    */
   class RetrieveFeedTask extends AsyncTask[Object, Unit, Unit] {
     var dialog: ProgressDialog = _
-    var error: Int = 0
+    var error: DialogType = _
 
     override def onPreExecute() {
       dialog = ProgressDialog.show(activity, "", "Retrieving...", true)

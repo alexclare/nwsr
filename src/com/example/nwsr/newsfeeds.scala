@@ -15,10 +15,10 @@ import android.widget.SimpleCursorAdapter
 import android.widget.EditText
 import android.widget.TextView
 
+import DialogType._
+
 class NewsFeeds extends NewsActivity {
   activity =>
-
-  val AddFeed: Int = 2
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -86,7 +86,7 @@ class NewsFeeds extends NewsActivity {
     }
   }
 
-  override def onCreateDialog(id: Int): Dialog = id match {
+  override def onCreateDialog(id: Int): Dialog = DialogType(id) match {
     case AddFeed => {
       val builder = new AlertDialog.Builder(this)
       val inflater = LayoutInflater.from(this)
@@ -115,7 +115,7 @@ class NewsFeeds extends NewsActivity {
     case _ => super.onCreateDialog(id)
   }
 
-  override def onPrepareDialog(id: Int, dialog: Dialog) = id match {
+  override def onPrepareDialog(id: Int, dialog: Dialog) = DialogType(id) match {
     case AddFeed => {
       dialog.findViewById(R.id.add_feed_url)
         .asInstanceOf[EditText].setText("")
