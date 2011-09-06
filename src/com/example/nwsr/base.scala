@@ -59,27 +59,30 @@ abstract class DatabaseActivity extends ListActivity {
 }
 
 
-abstract class NewsActivity extends DatabaseActivity {
+trait FeedRetriever extends DatabaseActivity {
   activity =>
 
-  override def onCreateDialog(id: Int): Dialog = DialogType(id) match {
-    case (FeedNotFound | FeedInvalid) => {
-      val builder = new AlertDialog.Builder(this)
-      builder.setCancelable(false)
-      builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, id: Int) {
-          dialog.dismiss()
-        }
-      })
-      builder.setTitle("Retrieve feed error")
-      builder.setMessage(DialogType(id) match {
-        case FeedNotFound => "Could not load URL"
-        case FeedInvalid => "Not a valid RSS/Atom feed"
-        case _ => "Unknown Error"
-      })
-      builder.create()
+  override def onCreateDialog(id: Int): Dialog = {
+    val dialog = DialogType(id)
+    dialog match {
+      case (FeedNotFound | FeedInvalid) => {
+        val builder = new AlertDialog.Builder(this)
+        builder.setCancelable(false)
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+          def onClick(dialog: DialogInterface, id: Int) {
+            dialog.dismiss()
+          }
+        })
+        builder.setTitle("Retrieve feed error")
+        builder.setMessage(dialog match {
+          case FeedNotFound => "Could not load URL"
+          case FeedInvalid => "Not a valid RSS/Atom feed"
+          case _ => "Unknown Error"
+        })
+        builder.create()
+      }
+      case _ => super.onCreateDialog(id)
     }
-    case _ => super.onCreateDialog(id)
   }
 
   /** Unfortunately, the Scala compiler doesn't generate type signatures for

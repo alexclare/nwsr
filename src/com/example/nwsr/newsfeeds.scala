@@ -17,7 +17,7 @@ import android.widget.TextView
 
 import DialogType._
 
-class NewsFeeds extends NewsActivity {
+class NewsFeeds extends DatabaseActivity with FeedRetriever {
   activity =>
 
   override def onCreate(savedInstanceState: Bundle) {

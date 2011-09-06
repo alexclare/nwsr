@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuilder
 
 import com.example.util.Story
 
-class Headlines extends NewsActivity
+class Headlines extends DatabaseActivity with FeedRetriever
 with SharedPreferences.OnSharedPreferenceChangeListener {
   activity =>
 
