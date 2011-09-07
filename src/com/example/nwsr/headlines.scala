@@ -94,7 +94,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       db.hideStories(ids)
       updateView()
       activity.getListView.setSelectionAfterHeaderView()
-      val intent = new Intent(this, classOf[NWSRTrainingService])
+      val intent = new Intent(this, classOf[TrainingService])
       intent.putExtra("ids", ids)
       startService(intent)
     }

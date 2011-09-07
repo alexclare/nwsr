@@ -25,7 +25,7 @@ case object PositiveStory extends StoryType
 case object NegativeStory extends StoryType
 
 
-class NWSRTrainingService extends IntentService ("NWSRTrainingService") {
+class TrainingService extends IntentService ("NWSRTrainingService") {
   var db: NWSRDatabase = _
 
   override def onCreate() {
