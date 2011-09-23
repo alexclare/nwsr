@@ -19,6 +19,20 @@ object RichDatabase {
 }
 import RichDatabase._
 
+class RichDatabase(db: SQLiteDatabase) {
+  def exclusiveTransaction(fn: => Unit) {
+    db.beginTransaction()
+    try {
+      fn
+      db.setTransactionSuccessful()
+    } finally {
+      db.endTransaction()
+    }
+  }
+
+  def query(query: String) = new Query(db.rawQuery(query, Array.empty[String]))
+}
+
 class RichCursor(cur: Cursor) {
   def foreach(fn: => Unit) {
     cur.moveToFirst()
@@ -29,44 +43,44 @@ class RichCursor(cur: Cursor) {
   }
 }
 
-// Clean up this little bit of custom syntax
-class RichDatabase(db: SQLiteDatabase) {
-  def singleRow[T](query: String)(fn: (Cursor => T)) = {
-    val cursor = db.rawQuery(query, Array.empty[String])
-    cursor.moveToFirst()
-    val result = fn(cursor)
-    cursor.close()
-    result
-  }
-
-  def conditional(query: String)
-  (exists: (Cursor => Unit) = { (c:Cursor) => })
-  (otherwise: => Unit = { }) {
-    val cursor = db.rawQuery(query, Array.empty[String])
-    if (cursor.getCount > 0) {
-      cursor.moveToFirst()
-      exists(cursor)
-    } else {
-      otherwise
-    }
-    cursor.close()
-  }
-
-  def foreach(query: String)(fn: (Cursor => Unit)) {
-    val cursor = db.rawQuery(query, Array.empty[String])
+/** The Query class is designed for one-off database queries; the underlying
+ *  cursor is closed after a single use
+ */
+class Query(val cursor: Cursor) {
+  def foreach(fn: (Cursor => Unit)) {
     cursor.foreach {
       fn(cursor)
     }
     cursor.close()
   }
 
-  def exclusiveTransaction(fn: => Unit) {
-    db.beginTransaction()
-    try {
-      fn
-      db.setTransactionSuccessful()
-    } finally {
-      db.endTransaction()
+  def singleRow[T](fn: (Cursor => T)) = {
+    cursor.moveToFirst()
+    val result = fn(cursor)
+    cursor.close()
+    result
+  }
+
+  def ifExists(fn: (Cursor => Unit)): QueryOtherwise = {
+    if (cursor.getCount > 0) {
+      cursor.moveToFirst()
+      fn(cursor)
     }
+    cursor.close()
+    new QueryOtherwise()
+  }
+
+  def ifNotExists(fn: => Unit) {
+    if (cursor.getCount <= 0) {
+      fn
+    }
+    cursor.close()
   }
 }
+
+class QueryOtherwise {
+  def otherwise(fn: => Unit) {
+    fn
+  }
+}
+

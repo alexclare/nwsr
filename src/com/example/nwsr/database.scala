@@ -78,7 +78,7 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
         // drop a few columns from story and one from feed between 0.1.0 and 0.2.x
         db.execSQL("alter table story rename to old_story")
         db.execSQL(createStories)
-        db.foreach("select _id, title, link, weight, updated, feed from old_story") {
+        db.query("select _id, title, link, weight, updated, feed from old_story").foreach {
           (c: Cursor) =>
           val values = new ContentValues()
           values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
@@ -94,7 +94,7 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
 
         db.execSQL("alter table feed rename to old_feed")
         db.execSQL(createFeeds)
-        db.foreach("select _id, title, link, display_link, etag, last_modified from old_feed") {
+        db.query("select _id, title, link, display_link, etag, last_modified from old_feed").foreach {
           (c: Cursor) =>
           val values = new ContentValues()
           values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
@@ -193,10 +193,9 @@ class NWSRDatabase (context: Context) {
 
 
   def addStory(story: Story, id: Long) {
-    db.conditional(
+    db.query(
       "select 1 where exists (select null from seen where title = %d)"
-      .format(story.title.hashCode())) () {
-        // Otherwise clause: add the story if the title hasn't been seen
+      .format(story.title.hashCode())).ifNotExists {
         val values = new ContentValues()
         val seen = new ContentValues()
         val now: Long = System.currentTimeMillis
@@ -239,22 +238,22 @@ class NWSRDatabase (context: Context) {
     val posDocs = prefs.getLong("positive_headline_count", 0)
     val negDocs = prefs.getLong("negative_headline_count", 0)
     val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
-    val totWords = db.singleRow[Long](
-      "select count(*) from word")(_.getLong(0))
-    val posDenom = db.singleRow[Double](
-      "select count(*) from word where positive > 0")(_.getLong(0) + totWords)
-    val negDenom = db.singleRow[Double](
-      "select count(*) from word where negative > 0")(_.getLong(0) + totWords)
+    val totWords = db.query("select count(*) from word")
+      .singleRow[Long](_.getLong(0))
+    val posDenom = db.query("select count(*) from word where positive > 0")
+      .singleRow[Double](_.getLong(0) + totWords)
+    val negDenom = db.query("select count(*) from word where negative > 0")
+      .singleRow[Double](_.getLong(0) + totWords)
     var positive: Double = posDocs / totDocs
     var negative: Double = negDocs / totDocs
     for (word <- Classifier.normalize(title)) {
-      db.conditional(
+      db.query(
         "select positive, negative from word where repr = '%s'"
-        .format(word)) {
+        .format(word)).ifExists {
           (c: Cursor) =>
             positive *= ((c.getLong(0) + 1)/posDenom)
             negative *= ((c.getLong(1) + 1)/negDenom)
-        }()
+        }
     }
     (positive, negative)
   }
@@ -272,8 +271,8 @@ class NWSRDatabase (context: Context) {
       case PositiveStory => ("positive", "negative")
       case NegativeStory => ("negative", "positive")
     }
-    db.foreach(
-      "select title from story where _id in (%s)".format(idString)) {
+    db.query(
+      "select title from story where _id in (%s)".format(idString)).foreach {
       (story: Cursor) =>
         for (word <- Classifier.normalize(story.getString(0))) {
           words(word) = words(word) + 1
@@ -283,15 +282,15 @@ class NWSRDatabase (context: Context) {
     // Another spot where a wrapped non-exclusive transaction would be helpful
     for (word <- words.keySet) {
       val values = new ContentValues()
-      db.conditional(
+      db.query(
         "select _id, %s from word where repr = '%s'"
-        .format(thisClass, word)) {
+        .format(thisClass, word)).ifExists {
           (c: Cursor) =>
             values.put(thisClass,
                        java.lang.Long.valueOf(c.getLong(1) + words(word)))
           db.update("word", values, "_id = ?",
                     Array(c.getLong(0).toString))
-        } {
+        } otherwise {
           // The "put" method here truncates leading 0s on string
           //    representations of numbers, e.g. converting "000" to "0"
           values.put("repr", word)
