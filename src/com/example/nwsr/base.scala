@@ -20,7 +20,7 @@ import org.xml.sax.SAXParseException
 
 import com.aquamentis.util.Feed
 import com.aquamentis.util.NotFeedException
-
+import com.aquamentis.util.RichDatabase._
 
 object DialogType extends Enumeration {
   type DialogType = Value
@@ -102,8 +102,7 @@ trait FeedRetriever extends DatabaseActivity {
         case Left(link) => addFeed(None, link, None, None, true)
         case Right(id) => {
           val cursor = db.feedsToRefresh(id)
-          cursor.moveToFirst()
-          while(!cursor.isAfterLast) {
+          cursor.foreach {
             addFeed(
               Some(cursor.getLong(0)), cursor.getString(1),
               cursor.getString(2) match {
@@ -114,7 +113,6 @@ trait FeedRetriever extends DatabaseActivity {
                 case null => None
                 case l => Some(l)
               }, false)
-            cursor.moveToNext()
           }
           cursor.close()
         }

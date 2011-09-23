@@ -20,6 +20,7 @@ import android.widget.TextView
 
 import scala.collection.mutable.ArrayBuilder
 
+import com.aquamentis.util.RichDatabase._
 import com.aquamentis.util.Story
 
 class Headlines extends DatabaseActivity with FeedRetriever
@@ -84,10 +85,8 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     if (id < 0) {
       val ids = {
         val arr = ArrayBuilder.make[Long]
-        cursor.moveToFirst()
-        while (!cursor.isAfterLast) {
+        cursor.foreach {
           arr += cursor.getLong(0)
-          cursor.moveToNext()
         }
         arr.result()
       }

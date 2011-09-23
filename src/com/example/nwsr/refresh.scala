@@ -17,6 +17,7 @@ import org.xml.sax.SAXParseException
 
 import com.aquamentis.util.Feed
 import com.aquamentis.util.NotFeedException
+import com.aquamentis.util.RichDatabase._
 
 class RefreshService extends IntentService ("NWSRRefreshService") {
   var db: NWSRDatabase = _
@@ -35,8 +36,7 @@ class RefreshService extends IntentService ("NWSRRefreshService") {
     if (getSystemService(Context.CONNECTIVITY_SERVICE)
         .asInstanceOf[ConnectivityManager].getBackgroundDataSetting) {
       val cursor = db.feedsToRefresh(None)
-      cursor.moveToFirst()
-      while(!cursor.isAfterLast) {
+      cursor.foreach {
         try {
           Feed.refresh(
             cursor.getString(1),
@@ -56,7 +56,6 @@ class RefreshService extends IntentService ("NWSRRefreshService") {
                     _: IOException) => 
           case _ @ (_: SAXParseException | _: NotFeedException) => 
         }
-        cursor.moveToNext()
       }
       cursor.close()
     }

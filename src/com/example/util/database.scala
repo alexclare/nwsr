@@ -14,9 +14,22 @@ import android.database.sqlite.SQLiteDatabase
  */
 
 object RichDatabase {
+  implicit def EnrichCursor(cur: Cursor) = new RichCursor(cur)
   implicit def EnrichDatabase(db: SQLiteDatabase) = new RichDatabase(db)
 }
+import RichDatabase._
 
+class RichCursor(cur: Cursor) {
+  def foreach(fn: => Unit) {
+    cur.moveToFirst()
+    while (!cur.isAfterLast) {
+      fn
+      cur.moveToNext()
+    }
+  }
+}
+
+// Clean up this little bit of custom syntax
 class RichDatabase(db: SQLiteDatabase) {
   def singleRow[T](query: String)(fn: (Cursor => T)) = {
     val cursor = db.rawQuery(query, Array.empty[String])
@@ -41,10 +54,8 @@ class RichDatabase(db: SQLiteDatabase) {
 
   def foreach(query: String)(fn: (Cursor => Unit)) {
     val cursor = db.rawQuery(query, Array.empty[String])
-    cursor.moveToFirst()
-    while (!cursor.isAfterLast) {
+    cursor.foreach {
       fn(cursor)
-      cursor.moveToNext()
     }
     cursor.close()
   }

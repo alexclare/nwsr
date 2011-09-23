@@ -15,6 +15,7 @@ import android.widget.TextView
 
 import scala.collection.mutable.ListBuffer
 
+import com.aquamentis.util.RichDatabase._
 import DialogType._
 
 class SavedItems extends DatabaseActivity {
@@ -42,10 +43,8 @@ class SavedItems extends DatabaseActivity {
         if (cursor.getCount > 0) {
           val text = {
             val result = ListBuffer.empty[String]
-            cursor.moveToFirst()
-            while (!cursor.isAfterLast) {
+            cursor.foreach {
               result.append(cursor.getString(2))
-              cursor.moveToNext()
             }
             result.mkString(";")
           }
