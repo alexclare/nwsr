@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.aquamentis.nwsr
 
 import android.app.IntentService
 import android.content.Intent

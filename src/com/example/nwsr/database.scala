@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.aquamentis.nwsr
 
 import android.content.ContentValues
 import android.content.Context
@@ -12,9 +12,9 @@ import scala.collection.mutable.ListBuffer
 import scala.math.pow
 import scala.util.Random
 
-import com.example.util.Feed
-import com.example.util.Story
-import com.example.util.RichDatabase._
+import com.aquamentis.util.Feed
+import com.aquamentis.util.Story
+import com.aquamentis.util.RichDatabase._
 
 /* General note: the ContentValues.put functions seem to require
  *   "java.lang.Type.valueOf" calls on occasion to appease the type checker

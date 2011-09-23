@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.aquamentis.nwsr
 
 import android.app.Dialog
 import android.app.ProgressDialog
@@ -20,7 +20,7 @@ import android.widget.TextView
 
 import scala.collection.mutable.ArrayBuilder
 
-import com.example.util.Story
+import com.aquamentis.util.Story
 
 class Headlines extends DatabaseActivity with FeedRetriever
 with SharedPreferences.OnSharedPreferenceChangeListener {

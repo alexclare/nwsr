@@ -1,4 +1,4 @@
-package com.example.util
+package com.aquamentis.util
 
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase

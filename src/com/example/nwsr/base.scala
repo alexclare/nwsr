@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.aquamentis.nwsr
 
 import android.app.AlertDialog
 import android.app.Dialog
@@ -18,8 +18,8 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
-import com.example.util.Feed
-import com.example.util.NotFeedException
+import com.aquamentis.util.Feed
+import com.aquamentis.util.NotFeedException
 
 
 object DialogType extends Enumeration {

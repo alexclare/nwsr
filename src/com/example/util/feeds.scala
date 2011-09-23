@@ -1,4 +1,4 @@
-package com.example.util
+package com.aquamentis.util
 
 import scala.collection.mutable.StringBuilder
 import scala.collection.mutable.ListBuffer

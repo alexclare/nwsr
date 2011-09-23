@@ -1,4 +1,4 @@
-package com.example.nwsr
+package com.aquamentis.nwsr
 
 import android.app.AlarmManager
 import android.app.IntentService
@@ -15,8 +15,8 @@ import java.net.UnknownHostException
 
 import org.xml.sax.SAXParseException
 
-import com.example.util.Feed
-import com.example.util.NotFeedException
+import com.aquamentis.util.Feed
+import com.aquamentis.util.NotFeedException
 
 class RefreshService extends IntentService ("NWSRRefreshService") {
   var db: NWSRDatabase = _
