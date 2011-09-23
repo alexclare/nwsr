@@ -35,6 +35,7 @@ class RefreshService extends IntentService ("NWSRRefreshService") {
   override def onHandleIntent(intent: Intent) {
     if (getSystemService(Context.CONNECTIVITY_SERVICE)
         .asInstanceOf[ConnectivityManager].getBackgroundDataSetting) {
+      db.purgeOld()
       val cursor = db.feedsToRefresh(None)
       cursor.foreach {
         try {
