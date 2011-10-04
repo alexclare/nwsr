@@ -13,13 +13,12 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.UnknownHostException
 
-import org.xml.sax.SAXParseException
-
 import com.aquamentis.util.Feed
 import com.aquamentis.util.NotFeedException
 import com.aquamentis.util.RichDatabase._
 
-class RefreshService extends IntentService ("NWSRRefreshService") {
+class RefreshService extends IntentService ("NWSRRefreshService")
+with SilentFeedRetriever {
   var db: NWSRDatabase = _
 
   override def onCreate() {
@@ -35,30 +34,7 @@ class RefreshService extends IntentService ("NWSRRefreshService") {
   override def onHandleIntent(intent: Intent) {
     if (getSystemService(Context.CONNECTIVITY_SERVICE)
         .asInstanceOf[ConnectivityManager].getBackgroundDataSetting) {
-      db.purgeOld()
-      val cursor = db.feedsToRefresh(None)
-      cursor.foreach {
-        try {
-          Feed.refresh(
-            cursor.getString(1),
-            cursor.getString(2) match {
-              case null => None
-              case e => Some(e)
-            },
-            cursor.getString(3) match {
-              case null => None
-              case l => Some(l)
-            }) match {
-            case Some(f) => db.addFeed(f, Some(cursor.getLong(0)))
-            case None =>
-          }
-        } catch {
-          case _ @ (_: FileNotFoundException | _: UnknownHostException |
-                    _: IOException) => 
-          case _ @ (_: SAXParseException | _: NotFeedException) => 
-        }
-      }
-      cursor.close()
+      retrieveFeed(FeedAll)
     }
   }
 }

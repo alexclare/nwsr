@@ -5,7 +5,6 @@ import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.AsyncTask
 import android.os.Bundle
 import android.preference.PreferenceManager
 import android.view.ContextMenu
@@ -23,7 +22,7 @@ import scala.collection.mutable.ArrayBuilder
 import com.aquamentis.util.RichDatabase._
 import com.aquamentis.util.Story
 
-class Headlines extends DatabaseActivity with FeedRetriever
+class Headlines extends DatabaseActivity with DialogFeedRetriever
 with SharedPreferences.OnSharedPreferenceChangeListener {
   activity =>
 
@@ -63,7 +62,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     item.getItemId match {
       case R.id.refresh => {
         db.purgeOld()
-        new RetrieveFeedTask().execute(new Right(None))
+        new ForegroundRetrieveTask().execute(FeedAll)
         true
       }
       case R.id.feeds => {

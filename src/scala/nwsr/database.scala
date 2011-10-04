@@ -20,6 +20,14 @@ import com.aquamentis.util.RichDatabase._
  *   "java.lang.Type.valueOf" calls on occasion to appease the type checker
  */
 
+/**
+ * A common type that retains a database handle, for functions that can be
+ *   called by either activities or intents
+ */
+trait DatabaseHandle {
+  def db: NWSRDatabase
+}
+
 object NWSRDatabaseHelper {
   val name = "nwsr.db"
   val version = 2
@@ -182,13 +190,15 @@ class NWSRDatabase (context: Context) {
     }
   }
 
-  def feedsToRefresh(id: Option[Long]): Cursor = id match {
-    case None => db.query(
-      "feed", Array("_id", "link", "etag", "last_modified"),
-      null, null, null, null, null)
-    case Some(id) => db.rawQuery(
+  def feedsToRefresh(req: FeedRequest): Cursor = req match {
+    case FeedLink(link: String) => db.rawQuery(
+      "select null", Array.empty[String])
+    case FeedId(id: Long) => db.rawQuery(
       "select _id, link, etag, last_modified from feed where _id = %d"
       .format(id), Array.empty[String])
+    case FeedAll => db.query(
+      "feed", Array("_id", "link", "etag", "last_modified"),
+      null, null, null, null, null)
   }
 
 

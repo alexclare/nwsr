@@ -17,7 +17,7 @@ import android.widget.TextView
 
 import DialogType._
 
-class NewsFeeds extends DatabaseActivity with FeedRetriever {
+class NewsFeeds extends DatabaseActivity with DialogFeedRetriever {
   activity =>
 
   override def onCreate(savedInstanceState: Bundle) {
@@ -40,7 +40,7 @@ class NewsFeeds extends DatabaseActivity with FeedRetriever {
     if (getIntent.getAction == Intent.ACTION_VIEW) {
       // Issue 950 causes some feeds not to be recognized by the intent
       //   filter; fixed in 2.2
-      new RetrieveFeedTask().execute(new Left(getIntent.getDataString))
+      new DialogRetrieveTask().execute(FeedLink(getIntent.getDataString))
     }
     updateView()
   }
@@ -69,7 +69,7 @@ class NewsFeeds extends DatabaseActivity with FeedRetriever {
     item.getItemId() match {
       case R.id.refresh => {
         db.purgeOld()
-        new RetrieveFeedTask().execute(new Right(Some(info.id)))
+        new DialogRetrieveTask().execute(FeedId(info.id))
         true
       }
       case R.id.open_browser => {
@@ -95,8 +95,8 @@ class NewsFeeds extends DatabaseActivity with FeedRetriever {
         R.string.dialog_ok,
         new DialogInterface.OnClickListener () {
           def onClick(dialog: DialogInterface, button: Int) {
-            new RetrieveFeedTask().execute(
-              new Left(layout.findViewById(R.id.add_feed_url)
+            new DialogRetrieveTask().execute(
+              FeedLink(layout.findViewById(R.id.add_feed_url)
                        .asInstanceOf[EditText].getText().toString()))
             dialog.dismiss()
           }

@@ -15,7 +15,6 @@ import android.widget.SimpleCursorAdapter
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.UnknownHostException
-
 import org.xml.sax.SAXParseException
 
 import com.aquamentis.util.Feed
@@ -59,7 +58,61 @@ abstract class DatabaseActivity extends ListActivity {
 }
 
 
-trait FeedRetriever extends DatabaseActivity {
+sealed abstract class FeedRequest
+case class FeedLink(link: String) extends FeedRequest
+case class FeedId(id: Long) extends FeedRequest
+case object FeedAll extends FeedRequest
+
+trait FeedRetriever extends DatabaseHandle {
+  def retrieveFeed(req: FeedRequest) {
+    req match {
+      case FeedAll => db.purgeOld()
+      case _ =>
+    }
+    req match {
+      case FeedLink(link: String) => addFeed(None, link, None, None)
+      case (_: FeedId | FeedAll) => {
+        val cursor = db.feedsToRefresh(req)
+        cursor.foreach {
+          addFeed(Some(cursor.getLong(0)), cursor.getString(1),
+                  cursor.getString(2) match {
+                    case null => None
+                    case e => Some(e)
+                  },
+                  cursor.getString(3) match {
+                    case null => None
+                    case l => Some(l)
+                  })
+        }
+        cursor.close()
+      }
+    }
+  }
+
+  def addFeed(id: Option[Long], link: String, etag: Option[String],
+              lastMod: Option[String]) {
+    try {
+      Feed.refresh(link, etag, lastMod) match {
+        case Some(f) => db.addFeed(f, id)
+        case None =>
+      }
+    } catch {
+      case (_: FileNotFoundException | _: UnknownHostException |
+            _: IOException) => handleFeedNotFound()
+      case (_: SAXParseException | _: NotFeedException) => handleFeedInvalid()
+    }
+  }
+
+  def handleFeedNotFound()
+  def handleFeedInvalid()
+}
+
+trait SilentFeedRetriever extends FeedRetriever {
+  def handleFeedNotFound() = { }
+  def handleFeedInvalid() = { }
+}
+
+trait DialogFeedRetriever extends DatabaseActivity {
   activity =>
 
   override def onCreateDialog(id: Int): Dialog = {
@@ -89,34 +142,17 @@ trait FeedRetriever extends DatabaseActivity {
    *    this class that are recognizable by the Android VM once the program is
    *    running, hence the "Object" and casting
    */
-  class RetrieveFeedTask extends AsyncTask[Object, Unit, Unit] {
+  class ForegroundRetrieveTask extends AsyncTask[Object, Unit, Unit]
+  with SilentFeedRetriever {
+    def db = activity.db
     var dialog: ProgressDialog = _
-    var error: DialogType = _
 
     override def onPreExecute() {
       dialog = ProgressDialog.show(activity, "", "Retrieving...", true)
     }
 
-    def doInBackground(linkOrId: Object*) {
-      linkOrId(0).asInstanceOf[Either[String, Option[Long]]] match {
-        case Left(link) => addFeed(None, link, None, None, true)
-        case Right(id) => {
-          val cursor = db.feedsToRefresh(id)
-          cursor.foreach {
-            addFeed(
-              Some(cursor.getLong(0)), cursor.getString(1),
-              cursor.getString(2) match {
-                case null => None
-                case e => Some(e)
-              },
-              cursor.getString(3) match {
-                case null => None
-                case l => Some(l)
-              }, false)
-          }
-          cursor.close()
-        }
-      }
+    def doInBackground(request: Object*) {
+      retrieveFeed(request(0).asInstanceOf[FeedRequest])
     }
 
     override def onPostExecute(a:Unit) {
@@ -126,29 +162,26 @@ trait FeedRetriever extends DatabaseActivity {
 
     override def onCancelled() {
       dialog.dismiss()
+    }
+  }
+
+  class DialogRetrieveTask extends ForegroundRetrieveTask {
+    var error: DialogType = _
+
+    override def onCancelled() {
+      dialog.dismiss()
       showDialog(error)
     }
 
-    def addFeed(id: Option[Long], link: String, etag: Option[String],
-                lastMod: Option[String], cancelOnError: Boolean) {
-      try {
-        Feed.refresh(link, etag, lastMod) match {
-          case Some(f) => db.addFeed(f, id)
-          case None =>
-        }
-      } catch {
-        case _ @ (_: FileNotFoundException | _: UnknownHostException |
-                  _: IOException)
-        => if (cancelOnError) {
-          error = FeedNotFound
-          cancel(false)
-        }
-        case _ @ (_: SAXParseException | _: NotFeedException)
-        => if (cancelOnError) {
-          error = FeedInvalid
-          cancel(false)
-        }
-      }
+    override def handleFeedNotFound() {
+      error = FeedNotFound
+      cancel(false)
+    }
+
+    override def handleFeedInvalid() {
+      error = FeedInvalid
+      cancel(false)
     }
   }
 }
+
