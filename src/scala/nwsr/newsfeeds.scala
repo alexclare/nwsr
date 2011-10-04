@@ -18,7 +18,6 @@ import android.widget.TextView
 import DialogType._
 
 class NewsFeeds extends DatabaseActivity with DialogFeedRetriever {
-  activity =>
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -68,7 +67,6 @@ class NewsFeeds extends DatabaseActivity with DialogFeedRetriever {
       AdapterView.AdapterContextMenuInfo]
     item.getItemId() match {
       case R.id.refresh => {
-        db.purgeOld()
         new DialogRetrieveTask().execute(FeedId(info.id))
         true
       }

@@ -24,7 +24,6 @@ import com.aquamentis.util.Story
 
 class Headlines extends DatabaseActivity with DialogFeedRetriever
 with SharedPreferences.OnSharedPreferenceChangeListener {
-  activity =>
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -61,7 +60,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
   override def onOptionsItemSelected(item: MenuItem): Boolean = 
     item.getItemId match {
       case R.id.refresh => {
-        db.purgeOld()
         new ForegroundRetrieveTask().execute(FeedAll)
         true
       }
@@ -91,7 +89,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       }
       db.hideStories(ids)
       updateView()
-      activity.getListView.setSelectionAfterHeaderView()
+      getListView.setSelectionAfterHeaderView()
       val intent = new Intent(this, classOf[TrainingService])
       intent.putExtra("ids", ids)
       startService(intent)
