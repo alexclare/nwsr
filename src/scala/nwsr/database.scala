@@ -49,11 +49,29 @@ object NWSRDatabaseHelper {
                      "etag string, " +
                      "last_modified string);")
 
+  val createDomains = ("create table domain (" +
+                       "_id integer primary key, " +
+                       "repr string unique, " +
+                       "positive integer, " +
+                       "negative integer);")
+
   val createWords = ("create table word (" +
                      "_id integer primary key, " +
                      "repr string unique, " +
                      "positive integer, " +
                      "negative integer);")
+
+  val createBigrams = ("create table bigram (" +
+                       "_id integer primary key, " +
+                       "repr string unique, " +
+                       "positive integer, " +
+                       "negative integer);")
+
+  val createTrigrams = ("create table trigram (" +
+                        "_id integer primary key, " +
+                        "repr string unique, " +
+                        "positive integer, " +
+                        "negative integer);")
 
   val createSeen = ("create table seen (" +
                     "title integer primary key, " +
@@ -74,51 +92,22 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
     db.exclusiveTransaction {
       db.execSQL(createStories)
       db.execSQL(createFeeds)
+      db.execSQL(createDomains)
       db.execSQL(createWords)
+      db.execSQL(createBigrams)
+      db.execSQL(createTrigrams)
       db.execSQL(createSeen)
       db.execSQL(createSaved)
     }
   }
 
   override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
-    if (oldVer == 1) {
-      db.exclusiveTransaction {
-        // drop a few columns from story and one from feed between 0.1.0 and 0.2.x
-        db.execSQL("alter table story rename to old_story")
-        db.execSQL(createStories)
-        db.query("select _id, title, link, weight, updated, feed from old_story").foreach {
-          (c: Cursor) =>
-          val values = new ContentValues()
-          values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
-          values.put("title", c.getString(1))
-          values.put("link", c.getString(2))
-          values.put("weight", c.getDouble(3))
-          values.put("updated", java.lang.Long.valueOf(c.getLong(4)))
-          values.put("show", java.lang.Integer.valueOf(1))
-          values.put("feed", java.lang.Long.valueOf(c.getLong(5)))
-          db.insert("story", null, values)
-        }
-        db.execSQL("drop table old_story")
 
-        db.execSQL("alter table feed rename to old_feed")
-        db.execSQL(createFeeds)
-        db.query("select _id, title, link, display_link, etag, last_modified from old_feed").foreach {
-          (c: Cursor) =>
-          val values = new ContentValues()
-          values.put("_id", java.lang.Long.valueOf(c.getLong(0)))
-          values.put("title", c.getString(1))
-          values.put("link", c.getString(2))
-          values.put("display_link", c.getString(3))
-          values.put("etag", c.getString(4))
-          values.put("last_modified", c.getString(5))
-          db.insert("feed", null, values)
-        }
-        db.execSQL("drop table old_feed")
-      }
-    }
   }
 }
 
+// break up into scope-specific traits that just need the db connection
+// i.e. one that handles views or one that handles stories, something like that
 class NWSRDatabase (context: Context) {
   var helper: NWSRDatabaseHelper = _
   var db: SQLiteDatabase = _
@@ -215,7 +204,7 @@ class NWSRDatabase (context: Context) {
         // Assume http, https links remain as they are
         values.put("link", story.link.stripPrefix("http://"))
 
-        val cf = classifyStory(story.title)
+        val cf = classify(story)
         values.put("weight", pow(rng.nextDouble(), cf._2/(cf._1+cf._2)))
 
         values.put("updated", java.lang.Long.valueOf(now))
@@ -244,26 +233,43 @@ class NWSRDatabase (context: Context) {
     }
   }
 
-  def classifyStory(title: String): (Double, Double) = {
+  case class ClassifierComponent(
+    table: String,
+    extractor: Story => TraversableOnce[String])
+
+  val components = List(
+    ClassifierComponent("domain", (s:Story) => Classifier.domain(s.link)),
+    ClassifierComponent("word", (s:Story) => Classifier.words(s.title)),
+    ClassifierComponent("bigram", (s:Story) => Classifier.bigrams(s.title)),
+    ClassifierComponent("trigram", (s:Story) => Classifier.trigrams(s.title)))
+
+  def classify(story: Story): (Double, Double) = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
     val negDocs = prefs.getLong("negative_headline_count", 0)
     val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
-    val totWords = db.query("select count(*) from word")
-      .singleRow[Long](_.getLong(0))
-    val posDenom = db.query("select count(*) from word where positive > 0")
-      .singleRow[Double](_.getLong(0) + totWords)
-    val negDenom = db.query("select count(*) from word where negative > 0")
-      .singleRow[Double](_.getLong(0) + totWords)
+
     var positive: Double = posDocs / totDocs
     var negative: Double = negDocs / totDocs
-    for (word <- Classifier.normalize(title)) {
-      db.query(
-        "select positive, negative from word where repr = '%s'"
-        .format(word)).ifExists {
-          (c: Cursor) =>
-            positive *= ((c.getLong(0) + 1)/posDenom)
-            negative *= ((c.getLong(1) + 1)/negDenom)
-        }
+
+    components.foreach {
+      (comp:ClassifierComponent) =>
+      val total = db.query("select count(*) from %s".format(comp.table))
+        .singleRow[Long](_.getLong(0))
+      val posDenom = db.query(
+        "select count(*) from %s where positive > 0".format(comp.table))
+        .singleRow[Double](_.getLong(0) + total)
+      val negDenom = db.query(
+        "select count(*) from %s where negative > 0".format(comp.table))
+        .singleRow[Double](_.getLong(0) + total)
+      for (item <- comp.extractor(story)) {
+        db.query(
+          "select positive, negative from %s where repr = '%s'"
+          .format(comp.table, item)).ifExists {
+            (c: Cursor) =>
+              positive *= ((c.getLong(0) + 1)/posDenom)
+              negative *= ((c.getLong(1) + 1)/negDenom)
+          }
+      }
     }
     (positive, negative)
   }
@@ -273,40 +279,50 @@ class NWSRDatabase (context: Context) {
    */
   def trainClassifier(ids: Array[Long], storyType: StoryType) {
     val editor = prefs.edit()
-    val words = new HashMap[String, Int]() {
+    val collections = components.map((c) => (c, new HashMap[String, Int]() {
       override def default(key: String): Int = 0
-    }
+    }))
     val idString = ids.mkString(", ")
     val (thisClass, otherClass) = storyType match {
       case PositiveStory => ("positive", "negative")
       case NegativeStory => ("negative", "positive")
     }
+
     db.query(
-      "select title from story where _id in (%s)".format(idString)).foreach {
-      (story: Cursor) =>
-        for (word <- Classifier.normalize(story.getString(0))) {
-          words(word) = words(word) + 1
+      "select title, link from story where _id in (%s)".format(idString))
+    .foreach {
+      (c: Cursor) =>
+        val story = Story(c.getString(0), c.getString(1))
+        collections.foreach {
+          (comp: (ClassifierComponent, HashMap[String, Int])) =>
+            for (item <- comp._1.extractor(story)) {
+              comp._2(item) = comp._2(item) + 1
+            }
         }
     }
 
     // Another spot where a wrapped non-exclusive transaction would be helpful
-    for (word <- words.keySet) {
-      val values = new ContentValues()
-      db.query(
-        "select _id, %s from word where repr = '%s'"
-        .format(thisClass, word)).ifExists {
-          (c: Cursor) =>
-            values.put(thisClass,
-                       java.lang.Long.valueOf(c.getLong(1) + words(word)))
-          db.update("word", values, "_id = ?",
-                    Array(c.getLong(0).toString))
-        } otherwise {
-          // The "put" method here truncates leading 0s on string
-          //    representations of numbers, e.g. converting "000" to "0"
-          values.put("repr", word)
-          values.put(thisClass, java.lang.Long.valueOf(words(word)))
-          values.put(otherClass, java.lang.Long.valueOf(0))
-          db.insert("word", null, values)
+    collections.foreach {
+      (comp: (ClassifierComponent, HashMap[String, Int])) =>
+        for (item <- comp._2.keySet) {
+          val values = new ContentValues()
+          db.query(
+            "select _id, %s from %s where repr = '%s'"
+            .format(thisClass, comp._1.table, item)).ifExists {
+              (c: Cursor) =>
+                values.put(thisClass, java.lang.Long.valueOf(
+                  c.getLong(1) + comp._2(item)))
+                db.update(comp._1.table, values, "_id = ?",
+                          Array(c.getLong(0).toString))
+            } otherwise {
+              // The "put" method here truncates leading 0s on string
+              //    representations of numbers, e.g. converting "000" to "0"
+              values.put("repr", item)
+              values.put(thisClass,
+                         java.lang.Long.valueOf(comp._2(item)))
+              values.put(otherClass, java.lang.Long.valueOf(0))
+              db.insert(comp._1.table, null, values)
+            }
         }
     }
 
