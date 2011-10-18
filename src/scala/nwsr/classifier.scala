@@ -4,8 +4,8 @@ import android.app.IntentService
 import android.content.ContentValues
 import android.content.Intent
 import android.content.SharedPreferences
-import android.database.sqlite.SQLiteDatabase
 import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
 
 import scala.collection.mutable.HashMap
 
@@ -137,23 +137,10 @@ trait Classifier {
       collections.foreach {
         (comp: (ClassifierComponent, HashMap[String, Int])) =>
           for (item <- comp._2.keySet) {
-            val values = new ContentValues()
-            db.query(
-              "select %s from %s where repr = '%s'"
-              .format(thisClass, comp._1.table, item)).ifExists {
-                (c: Cursor) =>
-                  values.put(thisClass, java.lang.Long.valueOf(
-                    c.getLong(0) + comp._2(item)))
-                  db.update(comp._1.table, values, "repr = ?", Array(item))
-              } otherwise {
-                // The "put" method here truncates leading 0s on string
-                //    representations of numbers, e.g. converting "000" to "0"
-                values.put("repr", item)
-                values.put(thisClass,
-                           java.lang.Long.valueOf(comp._2(item)))
-                values.put(otherClass, java.lang.Long.valueOf(0))
-                db.insert(comp._1.table, null, values)
-              }
+            db.execSQL("insert or ignore into %s values ('%s', 0, 0)".format(
+              comp._1.table, item))
+            db.execSQL("update %s set %s = %s + %s where repr = '%s'".format(
+              comp._1.table, thisClass, thisClass, comp._2(item), item))
           }
       }
     }
