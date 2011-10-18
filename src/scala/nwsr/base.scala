@@ -63,7 +63,9 @@ case class FeedLink(link: String) extends FeedRequest
 case class FeedId(id: Long) extends FeedRequest
 case object FeedAll extends FeedRequest
 
-trait FeedRetriever extends DatabaseHandle {
+trait FeedRetriever {
+  def db: NWSRDatabase
+
   def retrieveFeed(req: FeedRequest) {
     req match {
       case FeedAll => db.purgeOld()

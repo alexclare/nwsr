@@ -1,7 +1,20 @@
 package com.aquamentis.nwsr
 
 import android.app.IntentService
+import android.content.ContentValues
 import android.content.Intent
+import android.content.SharedPreferences
+import android.database.sqlite.SQLiteDatabase
+import android.database.Cursor
+
+import scala.collection.mutable.HashMap
+
+import com.aquamentis.util.Story
+import com.aquamentis.util.RichDatabase._
+
+sealed abstract class StoryType
+case object PositiveStory extends StoryType
+case object NegativeStory extends StoryType
 
 /**
  * Certainly a US-English-centric portion of the program, and one that could
@@ -46,11 +59,117 @@ object Classifier {
   def trigrams(str: String) = ngram(str, 3)
 }
 
-sealed abstract class StoryType
-case object PositiveStory extends StoryType
-case object NegativeStory extends StoryType
 
-// Modify for positive or negative
+trait Classifier {
+  def db: SQLiteDatabase
+  def prefs: SharedPreferences
+
+  // Come up with a better/less verbose name than "ClassifierComponent"
+  case class ClassifierComponent(
+    table: String,
+    extractor: Story => TraversableOnce[String])
+
+  val components = List(
+    ClassifierComponent("domain", (s:Story) => Classifier.domain(s.link)),
+    ClassifierComponent("word", (s:Story) => Classifier.words(s.title)),
+    ClassifierComponent("bigram", (s:Story) => Classifier.bigrams(s.title)),
+    ClassifierComponent("trigram", (s:Story) => Classifier.trigrams(s.title)))
+
+  def classify(story: Story): (Double, Double) = {
+    val posDocs = prefs.getLong("positive_headline_count", 0)
+    val negDocs = prefs.getLong("negative_headline_count", 0)
+    val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
+
+    var positive: Double = posDocs / totDocs
+    var negative: Double = negDocs / totDocs
+
+    components.foreach {
+      (comp:ClassifierComponent) =>
+      val total = db.query("select count(*) from %s".format(comp.table))
+        .singleRow[Long](_.getLong(0))
+      val posDenom = db.query(
+        "select count(*) from %s where positive > 0".format(comp.table))
+        .singleRow[Double](_.getLong(0) + total)
+      val negDenom = db.query(
+        "select count(*) from %s where negative > 0".format(comp.table))
+        .singleRow[Double](_.getLong(0) + total)
+      for (item <- comp.extractor(story)) {
+        db.query(
+          "select positive, negative from %s where repr = '%s'"
+          .format(comp.table, item)).ifExists {
+            (c: Cursor) =>
+              positive *= ((c.getLong(0) + 1)/posDenom)
+              negative *= ((c.getLong(1) + 1)/negDenom)
+          }
+      }
+    }
+    (positive, negative)
+  }
+
+  /** Adds stories with the given ids to the classifier, belonging to the
+   *    class given by storyType
+   */
+  def train(ids: Array[Long], storyType: StoryType) {
+    val editor = prefs.edit()
+    val collections = components.map((c) => (c, new HashMap[String, Int]() {
+      override def default(key: String): Int = 0
+    }))
+    val idString = ids.mkString(", ")
+    val (thisClass, otherClass) = storyType match {
+      case PositiveStory => ("positive", "negative")
+      case NegativeStory => ("negative", "positive")
+    }
+
+    db.query(
+      "select title, link from story where _id in (%s)".format(idString))
+    .foreach {
+      (c: Cursor) =>
+        val story = Story(c.getString(0), c.getString(1))
+        collections.foreach {
+          (comp: (ClassifierComponent, HashMap[String, Int])) =>
+            for (item <- comp._1.extractor(story)) {
+              comp._2(item) = comp._2(item) + 1
+            }
+        }
+    }
+
+    db.exclusiveTransaction {
+      collections.foreach {
+        (comp: (ClassifierComponent, HashMap[String, Int])) =>
+          for (item <- comp._2.keySet) {
+            val values = new ContentValues()
+            db.query(
+              "select %s from %s where repr = '%s'"
+              .format(thisClass, comp._1.table, item)).ifExists {
+                (c: Cursor) =>
+                  values.put(thisClass, java.lang.Long.valueOf(
+                    c.getLong(0) + comp._2(item)))
+                  db.update(comp._1.table, values, "repr = ?", Array(item))
+              } otherwise {
+                // The "put" method here truncates leading 0s on string
+                //    representations of numbers, e.g. converting "000" to "0"
+                values.put("repr", item)
+                values.put(thisClass,
+                           java.lang.Long.valueOf(comp._2(item)))
+                values.put(otherClass, java.lang.Long.valueOf(0))
+                db.insert(comp._1.table, null, values)
+              }
+          }
+      }
+    }
+
+    val headlineKey = storyType match {
+      case PositiveStory => "positive_headline_count"
+      case NegativeStory => "negative_headline_count"
+    }
+    editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
+    editor.commit()
+
+    db.execSQL("delete from story where _id in (" + idString + ")")
+  }
+}
+
+
 class TrainingService extends IntentService ("NWSRTrainingService") {
   var db: NWSRDatabase = _
 
@@ -66,6 +185,7 @@ class TrainingService extends IntentService ("NWSRTrainingService") {
 
   override def onHandleIntent(intent: Intent) {
     val ids = intent.getLongArrayExtra("ids").asInstanceOf[Array[Long]]
-    db.trainClassifier(ids, NegativeStory)
+    val cls = intent.getIntExtra("class", 0)
+    db.train(ids, if (cls == 0) NegativeStory else PositiveStory)
   }
 }

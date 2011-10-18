@@ -92,6 +92,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       getListView.setSelectionAfterHeaderView()
       val intent = new Intent(this, classOf[TrainingService])
       intent.putExtra("ids", ids)
+      intent.putExtra("class", 0)
       startService(intent)
     }
   }
@@ -115,7 +116,7 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       case R.id.open_browser => {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
-        db.trainClassifier(Array(info.id), PositiveStory)
+        db.train(Array(info.id), PositiveStory)
         openInBrowser(url)
         updateView()
         true
@@ -126,12 +127,12 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
             .asInstanceOf[TextView].getText.toString,
           info.targetView.findViewById(R.id.headline_link)
             .asInstanceOf[TextView].getText.toString))
-        db.trainClassifier(Array(info.id), PositiveStory)
+        db.train(Array(info.id), PositiveStory)
         updateView()
         true
       }
       case R.id.delete => {
-        db.trainClassifier(Array(info.id), NegativeStory)
+        db.train(Array(info.id), NegativeStory)
         updateView()
         false
       }

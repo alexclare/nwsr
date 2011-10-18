@@ -7,26 +7,12 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.preference.PreferenceManager
 
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.ListBuffer
 import scala.math.pow
 import scala.util.Random
 
 import com.aquamentis.util.Feed
 import com.aquamentis.util.Story
 import com.aquamentis.util.RichDatabase._
-
-/* General note: the ContentValues.put functions seem to require
- *   "java.lang.Type.valueOf" calls on occasion to appease the type checker
- */
-
-/**
- * A common type that retains a database handle, for functions that can be
- *   called by either activities or intents
- */
-trait DatabaseHandle {
-  def db: NWSRDatabase
-}
 
 object NWSRDatabaseHelper {
   val name = "nwsr.db"
@@ -50,26 +36,22 @@ object NWSRDatabaseHelper {
                      "last_modified string);")
 
   val createDomains = ("create table domain (" +
-                       "_id integer primary key, " +
-                       "repr string unique, " +
+                       "repr string primary key, " +
                        "positive integer, " +
                        "negative integer);")
 
   val createWords = ("create table word (" +
-                     "_id integer primary key, " +
-                     "repr string unique, " +
+                     "repr string primary key, " +
                      "positive integer, " +
                      "negative integer);")
 
   val createBigrams = ("create table bigram (" +
-                       "_id integer primary key, " +
-                       "repr string unique, " +
+                       "repr string primary key, " +
                        "positive integer, " +
                        "negative integer);")
 
   val createTrigrams = ("create table trigram (" +
-                        "_id integer primary key, " +
-                        "repr string unique, " +
+                        "repr string primary key, " +
                         "positive integer, " +
                         "negative integer);")
 
@@ -106,9 +88,9 @@ extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
   }
 }
 
-// break up into scope-specific traits that just need the db connection
-// i.e. one that handles views or one that handles stories, something like that
-class NWSRDatabase (context: Context) {
+
+class NWSRDatabase (context: Context)
+extends Classifier {
   var helper: NWSRDatabaseHelper = _
   var db: SQLiteDatabase = _
   val rng: Random = new Random()
@@ -232,110 +214,6 @@ class NWSRDatabase (context: Context) {
       db.execSQL("delete from seen where updated < %d".format(timeAgo))
     }
   }
-
-  case class ClassifierComponent(
-    table: String,
-    extractor: Story => TraversableOnce[String])
-
-  val components = List(
-    ClassifierComponent("domain", (s:Story) => Classifier.domain(s.link)),
-    ClassifierComponent("word", (s:Story) => Classifier.words(s.title)),
-    ClassifierComponent("bigram", (s:Story) => Classifier.bigrams(s.title)),
-    ClassifierComponent("trigram", (s:Story) => Classifier.trigrams(s.title)))
-
-  def classify(story: Story): (Double, Double) = {
-    val posDocs = prefs.getLong("positive_headline_count", 0)
-    val negDocs = prefs.getLong("negative_headline_count", 0)
-    val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
-
-    var positive: Double = posDocs / totDocs
-    var negative: Double = negDocs / totDocs
-
-    components.foreach {
-      (comp:ClassifierComponent) =>
-      val total = db.query("select count(*) from %s".format(comp.table))
-        .singleRow[Long](_.getLong(0))
-      val posDenom = db.query(
-        "select count(*) from %s where positive > 0".format(comp.table))
-        .singleRow[Double](_.getLong(0) + total)
-      val negDenom = db.query(
-        "select count(*) from %s where negative > 0".format(comp.table))
-        .singleRow[Double](_.getLong(0) + total)
-      for (item <- comp.extractor(story)) {
-        db.query(
-          "select positive, negative from %s where repr = '%s'"
-          .format(comp.table, item)).ifExists {
-            (c: Cursor) =>
-              positive *= ((c.getLong(0) + 1)/posDenom)
-              negative *= ((c.getLong(1) + 1)/negDenom)
-          }
-      }
-    }
-    (positive, negative)
-  }
-
-  /** Adds stories with the given ids to the classifier, belonging to the
-   *    class given by storyType
-   */
-  def trainClassifier(ids: Array[Long], storyType: StoryType) {
-    val editor = prefs.edit()
-    val collections = components.map((c) => (c, new HashMap[String, Int]() {
-      override def default(key: String): Int = 0
-    }))
-    val idString = ids.mkString(", ")
-    val (thisClass, otherClass) = storyType match {
-      case PositiveStory => ("positive", "negative")
-      case NegativeStory => ("negative", "positive")
-    }
-
-    db.query(
-      "select title, link from story where _id in (%s)".format(idString))
-    .foreach {
-      (c: Cursor) =>
-        val story = Story(c.getString(0), c.getString(1))
-        collections.foreach {
-          (comp: (ClassifierComponent, HashMap[String, Int])) =>
-            for (item <- comp._1.extractor(story)) {
-              comp._2(item) = comp._2(item) + 1
-            }
-        }
-    }
-
-    // Another spot where a wrapped non-exclusive transaction would be helpful
-    collections.foreach {
-      (comp: (ClassifierComponent, HashMap[String, Int])) =>
-        for (item <- comp._2.keySet) {
-          val values = new ContentValues()
-          db.query(
-            "select _id, %s from %s where repr = '%s'"
-            .format(thisClass, comp._1.table, item)).ifExists {
-              (c: Cursor) =>
-                values.put(thisClass, java.lang.Long.valueOf(
-                  c.getLong(1) + comp._2(item)))
-                db.update(comp._1.table, values, "_id = ?",
-                          Array(c.getLong(0).toString))
-            } otherwise {
-              // The "put" method here truncates leading 0s on string
-              //    representations of numbers, e.g. converting "000" to "0"
-              values.put("repr", item)
-              values.put(thisClass,
-                         java.lang.Long.valueOf(comp._2(item)))
-              values.put(otherClass, java.lang.Long.valueOf(0))
-              db.insert(comp._1.table, null, values)
-            }
-        }
-    }
-
-    val headlineKey = storyType match {
-      case PositiveStory => "positive_headline_count"
-      case NegativeStory => "negative_headline_count"
-    }
-    editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
-    editor.commit()
-
-    db.execSQL("delete from story where _id in (" + idString + ")")
-  }
-
 
   def addSaved(story: Story) {
     val values = new ContentValues()
