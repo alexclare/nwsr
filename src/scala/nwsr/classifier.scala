@@ -64,16 +64,15 @@ trait Classifier {
   def db: SQLiteDatabase
   def prefs: SharedPreferences
 
-  // Come up with a better/less verbose name than "ClassifierComponent"
-  case class ClassifierComponent(
+  case class Characteristic(
     table: String,
     extractor: Story => TraversableOnce[String])
 
-  val components = List(
-    ClassifierComponent("domain", (s:Story) => Classifier.domain(s.link)),
-    ClassifierComponent("word", (s:Story) => Classifier.words(s.title)),
-    ClassifierComponent("bigram", (s:Story) => Classifier.bigrams(s.title)),
-    ClassifierComponent("trigram", (s:Story) => Classifier.trigrams(s.title)))
+  val characteristics = List(
+    Characteristic("domain", (s:Story) => Classifier.domain(s.link)),
+    Characteristic("word", (s:Story) => Classifier.words(s.title)),
+    Characteristic("bigram", (s:Story) => Classifier.bigrams(s.title)),
+    Characteristic("trigram", (s:Story) => Classifier.trigrams(s.title)))
 
   def classify(story: Story): (Double, Double) = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
@@ -83,20 +82,20 @@ trait Classifier {
     var positive: Double = posDocs / totDocs
     var negative: Double = negDocs / totDocs
 
-    components.foreach {
-      (comp:ClassifierComponent) =>
-      val total = db.query("select count(*) from %s".format(comp.table))
+    characteristics.foreach {
+      (char:Characteristic) =>
+      val total = db.query("select count(*) from %s".format(char.table))
         .singleRow[Long](_.getLong(0))
       val posDenom = db.query(
-        "select count(*) from %s where positive > 0".format(comp.table))
+        "select count(*) from %s where positive > 0".format(char.table))
         .singleRow[Double](_.getLong(0) + total)
       val negDenom = db.query(
-        "select count(*) from %s where negative > 0".format(comp.table))
+        "select count(*) from %s where negative > 0".format(char.table))
         .singleRow[Double](_.getLong(0) + total)
-      for (item <- comp.extractor(story)) {
+      for (item <- char.extractor(story)) {
         db.query(
           "select positive, negative from %s where repr = '%s'"
-          .format(comp.table, item)).ifExists {
+          .format(char.table, item)).ifExists {
             (c: Cursor) =>
               positive *= ((c.getLong(0) + 1)/posDenom)
               negative *= ((c.getLong(1) + 1)/negDenom)
@@ -111,9 +110,10 @@ trait Classifier {
    */
   def train(ids: Array[Long], storyType: StoryType) {
     val editor = prefs.edit()
-    val collections = components.map((c) => (c, new HashMap[String, Int]() {
+    val collections = characteristics.map {
+      (c) => (c, new HashMap[String, Int]() {
       override def default(key: String): Int = 0
-    }))
+      })}
     val idString = ids.mkString(", ")
     val (thisClass, otherClass) = storyType match {
       case PositiveStory => ("positive", "negative")
@@ -126,21 +126,21 @@ trait Classifier {
       (c: Cursor) =>
         val story = Story(c.getString(0), c.getString(1))
         collections.foreach {
-          (comp: (ClassifierComponent, HashMap[String, Int])) =>
-            for (item <- comp._1.extractor(story)) {
-              comp._2(item) = comp._2(item) + 1
+          (char: (Characteristic, HashMap[String, Int])) =>
+            for (item <- char._1.extractor(story)) {
+              char._2(item) = char._2(item) + 1
             }
         }
     }
 
     db.exclusiveTransaction {
       collections.foreach {
-        (comp: (ClassifierComponent, HashMap[String, Int])) =>
-          for (item <- comp._2.keySet) {
+        (char: (Characteristic, HashMap[String, Int])) =>
+          for (item <- char._2.keySet) {
             db.execSQL("insert or ignore into %s values ('%s', 0, 0)".format(
-              comp._1.table, item))
+              char._1.table, item))
             db.execSQL("update %s set %s = %s + %s where repr = '%s'".format(
-              comp._1.table, thisClass, thisClass, comp._2(item), item))
+              char._1.table, thisClass, thisClass, char._2(item), item))
           }
       }
     }
