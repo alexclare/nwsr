@@ -162,12 +162,7 @@ class TrainingService extends IntentService ("NWSRTrainingService") {
 
   override def onCreate() {
     super.onCreate()
-    db = new NWSRDatabase(this).open()
-  }
-
-  override def onDestroy() {
-    super.onDestroy()
-    db.close()
+    db = NWSRDatabase(this)
   }
 
   override def onHandleIntent(intent: Intent) {

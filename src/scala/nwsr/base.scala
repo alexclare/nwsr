@@ -36,13 +36,12 @@ abstract class DatabaseActivity extends ListActivity {
 
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
-    db = new NWSRDatabase(this).open()
+    db = NWSRDatabase(this)
   }
 
   override def onDestroy() {
     super.onDestroy()
     cursor.close()
-    db.close()
   }
 
   def updateView() {

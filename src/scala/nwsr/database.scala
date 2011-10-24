@@ -2,6 +2,7 @@ package com.aquamentis.nwsr
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
@@ -97,20 +98,16 @@ object NWSRDatabaseHelper {
 }
 
 
-class NWSRDatabase (context: Context)
+object NWSRDatabase {
+  def apply(context: Context): NWSRDatabase = {
+    new NWSRDatabase(NWSRDatabaseHelper(context).getWritableDatabase(),
+                     PreferenceManager.getDefaultSharedPreferences(context))
+  }
+}
+
+class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences)
 extends Classifier {
-  var db: SQLiteDatabase = _
   val rng: Random = new Random()
-  val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-
-  def open(): NWSRDatabase = {
-    db = NWSRDatabaseHelper(context).getWritableDatabase()
-    this
-  }
-
-  def close() {
-
-  }
 
   def storyView(): Cursor = {
     val limit = prefs.getString("stories_per_page", "20")
