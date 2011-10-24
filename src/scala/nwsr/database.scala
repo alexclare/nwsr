@@ -63,47 +63,53 @@ object NWSRDatabaseHelper {
                      "_id integer primary key, " +
                      "title string, " +
                      "link string);")
-}
 
-class NWSRDatabaseHelper (val context: Context)
-extends SQLiteOpenHelper (context, NWSRDatabaseHelper.name, null,
-                          NWSRDatabaseHelper.version) {
-  import NWSRDatabaseHelper._
+  var helper: Option[SQLiteOpenHelper] = None
 
-  override def onCreate(db: SQLiteDatabase) {
-    db.exclusiveTransaction {
-      db.execSQL(createStories)
-      db.execSQL(createFeeds)
-      db.execSQL(createDomains)
-      db.execSQL(createWords)
-      db.execSQL(createBigrams)
-      db.execSQL(createTrigrams)
-      db.execSQL(createSeen)
-      db.execSQL(createSaved)
+  def apply(context: Context): SQLiteOpenHelper = synchronized {
+    helper match {
+      case Some(h) => h
+      case None => {
+        val h = new SQLiteOpenHelper(context, name, null, version) {
+          override def onCreate(db: SQLiteDatabase) {
+            db.exclusiveTransaction {
+              db.execSQL(createStories)
+              db.execSQL(createFeeds)
+              db.execSQL(createDomains)
+              db.execSQL(createWords)
+              db.execSQL(createBigrams)
+              db.execSQL(createTrigrams)
+              db.execSQL(createSeen)
+              db.execSQL(createSaved)
+            }
+          }
+
+          override def onUpgrade(db: SQLiteDatabase, oldVer: Int,
+                                 newVer: Int) {
+
+          }
+        }
+        helper = Some(h)
+        h
+      }
     }
-  }
-
-  override def onUpgrade(db: SQLiteDatabase, oldVer: Int, newVer: Int) {
-
   }
 }
 
 
 class NWSRDatabase (context: Context)
 extends Classifier {
-  var helper: NWSRDatabaseHelper = _
   var db: SQLiteDatabase = _
   val rng: Random = new Random()
   val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
   def open(): NWSRDatabase = {
-    helper = new NWSRDatabaseHelper(context)
-    db = helper.getWritableDatabase()
+    db = NWSRDatabaseHelper(context).getWritableDatabase()
     this
   }
 
   def close() {
-    helper.close()
+
   }
 
   def storyView(): Cursor = {
