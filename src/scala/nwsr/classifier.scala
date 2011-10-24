@@ -156,7 +156,6 @@ trait Classifier {
   }
 }
 
-
 class TrainingService extends IntentService ("NWSRTrainingService") {
   var db: NWSRDatabase = _
 
@@ -168,6 +167,10 @@ class TrainingService extends IntentService ("NWSRTrainingService") {
   override def onHandleIntent(intent: Intent) {
     val ids = intent.getLongArrayExtra("ids").asInstanceOf[Array[Long]]
     val cls = intent.getIntExtra("class", 0)
-    db.train(ids, if (cls == 0) NegativeStory else PositiveStory)
+    // Process at most 5 stories at a time to minimize the lock on the database
+    //   (more of a stopgap measure; we'll see if this has much of an effect)
+    for (arr <- ids.sliding(5, 5)) {
+      db.train(arr, if (cls == 0) NegativeStory else PositiveStory)
+    }
   }
 }
