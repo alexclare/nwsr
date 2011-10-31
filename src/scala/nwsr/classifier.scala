@@ -8,6 +8,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 
 import scala.collection.mutable.HashMap
+import scala.math.{exp, log}
 
 import com.aquamentis.util.Story
 import com.aquamentis.util.RichDatabase._
@@ -64,6 +65,7 @@ trait Classifier {
   def db: SQLiteDatabase
   def prefs: SharedPreferences
 
+  // Better language: replace "characteristic" with "feature"
   case class Characteristic(
     table: String,
     extractor: Story => TraversableOnce[String])
@@ -77,32 +79,32 @@ trait Classifier {
   def classify(story: Story): (Double, Double) = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
     val negDocs = prefs.getLong("negative_headline_count", 0)
-    val totDocs: Double = (posDocs + negDocs).toDouble max 1e-5
+    val totDocs = log(posDocs + negDocs) max 0.0
 
-    var positive: Double = posDocs / totDocs
-    var negative: Double = negDocs / totDocs
+    var positive: Double = log(posDocs) - totDocs
+    var negative: Double = log(negDocs) - totDocs
 
     characteristics.foreach {
       (char:Characteristic) =>
       val total = db.query("select count(*) from %s".format(char.table))
         .singleRow[Long](_.getLong(0))
-      val posDenom = db.query(
+      val posDenom = log(db.query(
         "select count(*) from %s where positive > 0".format(char.table))
-        .singleRow[Double](_.getLong(0) + total)
-      val negDenom = db.query(
+        .singleRow[Double](_.getLong(0) + total))
+      val negDenom = log(db.query(
         "select count(*) from %s where negative > 0".format(char.table))
-        .singleRow[Double](_.getLong(0) + total)
+        .singleRow[Double](_.getLong(0) + total))
       for (item <- char.extractor(story)) {
         db.query(
           "select positive, negative from %s where repr = '%s'"
           .format(char.table, item)).ifExists {
             (c: Cursor) =>
-              positive *= ((c.getLong(0) + 1)/posDenom)
-              negative *= ((c.getLong(1) + 1)/negDenom)
+              positive += log(c.getLong(0) + 1) - posDenom
+              negative += log(c.getLong(1) + 1) - negDenom
           }
       }
     }
-    (positive, negative)
+    (exp(positive), exp(negative))
   }
 
   /** Adds stories with the given ids to the classifier, belonging to the
