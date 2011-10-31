@@ -65,16 +65,15 @@ trait Classifier {
   def db: SQLiteDatabase
   def prefs: SharedPreferences
 
-  // Better language: replace "characteristic" with "feature"
-  case class Characteristic(
+  case class Feature(
     table: String,
-    extractor: Story => TraversableOnce[String])
+    extract: Story => TraversableOnce[String])
 
-  val characteristics = List(
-    Characteristic("domain", (s:Story) => Classifier.domain(s.link)),
-    Characteristic("word", (s:Story) => Classifier.words(s.title)),
-    Characteristic("bigram", (s:Story) => Classifier.bigrams(s.title)),
-    Characteristic("trigram", (s:Story) => Classifier.trigrams(s.title)))
+  val features = List(
+    Feature("domain", (s:Story) => Classifier.domain(s.link)),
+    Feature("word", (s:Story) => Classifier.words(s.title)),
+    Feature("bigram", (s:Story) => Classifier.bigrams(s.title)),
+    Feature("trigram", (s:Story) => Classifier.trigrams(s.title)))
 
   def classify(story: Story): (Double, Double) = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
@@ -84,20 +83,20 @@ trait Classifier {
     var positive: Double = log(posDocs) - totDocs
     var negative: Double = log(negDocs) - totDocs
 
-    characteristics.foreach {
-      (char:Characteristic) =>
-      val total = db.query("select count(*) from %s".format(char.table))
+    features.foreach {
+      (feature:Feature) =>
+      val total = db.query("select count(*) from %s".format(feature.table))
         .singleRow[Long](_.getLong(0))
       val posDenom = log(db.query(
-        "select count(*) from %s where positive > 0".format(char.table))
+        "select count(*) from %s where positive > 0".format(feature.table))
         .singleRow[Double](_.getLong(0) + total))
       val negDenom = log(db.query(
-        "select count(*) from %s where negative > 0".format(char.table))
+        "select count(*) from %s where negative > 0".format(feature.table))
         .singleRow[Double](_.getLong(0) + total))
-      for (item <- char.extractor(story)) {
+      for (item <- feature.extract(story)) {
         db.query(
           "select positive, negative from %s where repr = '%s'"
-          .format(char.table, item)).ifExists {
+          .format(feature.table, item)).ifExists {
             (c: Cursor) =>
               positive += log(c.getLong(0) + 1) - posDenom
               negative += log(c.getLong(1) + 1) - negDenom
@@ -107,12 +106,9 @@ trait Classifier {
     (exp(positive), exp(negative))
   }
 
-  /** Adds stories with the given ids to the classifier, belonging to the
-   *    class given by storyType
-   */
   def train(ids: Array[Long], storyType: StoryType) {
     val editor = prefs.edit()
-    val collections = characteristics.map {
+    val tally = features.map {
       (c) => (c, new HashMap[String, Int]() {
       override def default(key: String): Int = 0
       })}
@@ -127,22 +123,22 @@ trait Classifier {
     .foreach {
       (c: Cursor) =>
         val story = Story(c.getString(0), c.getString(1))
-        collections.foreach {
-          (char: (Characteristic, HashMap[String, Int])) =>
-            for (item <- char._1.extractor(story)) {
-              char._2(item) = char._2(item) + 1
+        tally.foreach {
+          (feature: (Feature, HashMap[String, Int])) =>
+            for (item <- feature._1.extract(story)) {
+              feature._2(item) = feature._2(item) + 1
             }
         }
     }
 
     db.exclusiveTransaction {
-      collections.foreach {
-        (char: (Characteristic, HashMap[String, Int])) =>
-          for (item <- char._2.keySet) {
+      tally.foreach {
+        (feature: (Feature, HashMap[String, Int])) =>
+          for (item <- feature._2.keySet) {
             db.execSQL("insert or ignore into %s values ('%s', 0, 0)".format(
-              char._1.table, item))
+              feature._1.table, item))
             db.execSQL("update %s set %s = %s + %s where repr = '%s'".format(
-              char._1.table, thisClass, thisClass, char._2(item), item))
+              feature._1.table, thisClass, thisClass, feature._2(item), item))
           }
       }
     }
