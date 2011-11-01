@@ -37,15 +37,21 @@ object Classifier {
     })
   }
 
+  /** Common stop words from the Python NLTK (www.nltk.org), which are in turn from
+   *  http://anoncvs.postgresql.org/cvsweb.cgi/pgsql/src/backend/snowball/stopwords/
+   */
   val commonWords = Set(
-    "the","and","that","have","for","not","with","you","this",
-    "but","his","from","they","say","her","she","will","one","all","would",
-    "there","their","what","out","about","who","get","which","when","make",
-    "can","like","time","just","him","know","take","person","into","year",
-    "your","good","some","could","them","see","other","than","then","now",
-    "look","only","come","its","over","think","also","back","after","use",
-    "two","how","our","work","first","well","way","even","new","want",
-    "because","any","these","give","day","most")
+    "myself","our","ours","ourselves","you","your","yours","yourself",
+    "yourselves","him","his","himself","she","her","hers","herself","its",
+    "itself","they","them","their","theirs","themselves","what","which","who",
+    "whom","this","that","these","those","are","was","were","been","being",
+    "have","has","had","having","does","did","doing","the","and","but",
+    "because","until","while","for","with","about","against","between","into",
+    "through","during","before","after","above","below","from","down","out",
+    "off","over","under","again","further","then","once","here","there","when",
+    "where","why","how","all","any","both","each","few","more","most","other",
+    "some","such","nor","not","only","own","same","than","too","very","can",
+    "will","just","should","now")
 
   def words(str: String) = punctuation.replaceAllIn(str, " ")
     .toLowerCase().split(' ')
