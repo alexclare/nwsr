@@ -91,14 +91,12 @@ trait Classifier {
 
     features.foreach {
       (feature:Feature) =>
-      val total = db.query("select count(*) from %s".format(feature.table))
-        .singleRow[Long](_.getLong(0))
       val posDenom = log(db.query(
-        "select count(*) from %s where positive > 0".format(feature.table))
-        .singleRow[Double](_.getLong(0) + total))
+        "select sum(positive+1) from %s".format(feature.table))
+        .singleRow[Double](_.getLong(0)))
       val negDenom = log(db.query(
-        "select count(*) from %s where negative > 0".format(feature.table))
-        .singleRow[Double](_.getLong(0) + total))
+        "select sum(negative+1) from %s".format(feature.table))
+        .singleRow[Double](_.getLong(0)))
       for (item <- feature.extract(story)) {
         db.query(
           "select positive, negative from %s where repr = '%s'"
