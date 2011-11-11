@@ -190,7 +190,8 @@ extends Classifier {
         values.put("link", story.link.stripPrefix("http://"))
 
         val cf = classify(story)
-        values.put("weight", pow(rng.nextDouble(), cf._2/(cf._1+cf._2)))
+        values.put(
+          "weight", pow(rng.nextDouble(), if (cf > 0) (1/(cf+1.0)) else 1.0))
 
         values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))

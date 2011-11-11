@@ -81,7 +81,7 @@ trait Classifier {
     Feature("bigram", (s:Story) => Classifier.bigrams(s.title)),
     Feature("trigram", (s:Story) => Classifier.trigrams(s.title)))
 
-  def classify(story: Story): (Double, Double) = {
+  def classify(story: Story): Double = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
     val negDocs = prefs.getLong("negative_headline_count", 0)
     val totDocs = log(posDocs + negDocs) max 0.0
@@ -107,7 +107,7 @@ trait Classifier {
           }
       }
     }
-    (exp(positive), exp(negative))
+    positive - negative
   }
 
   def train(ids: Array[Long], storyType: StoryType) {
