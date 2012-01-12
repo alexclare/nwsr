@@ -19,7 +19,7 @@ case object NegativeStory extends StoryType
 
 /**
  * Certainly a US-English-centric portion of the program, and one that could
- * probably be adapted without much loss in quality; bigrams and trigrams
+ * probably be adapted without much loss in quality; bigrams
  * aren't even filtered due to a lack of data regarding common ones.
  *
  * Common words don't have much effect on the filter, and take up little space
@@ -63,7 +63,6 @@ object Classifier {
              .map(_.reduceLeft(_ + " " + _)).toTraversable)
 
   def bigrams(str: String) = ngram(str, 2)
-  def trigrams(str: String) = ngram(str, 3)
 }
 
 
@@ -78,8 +77,7 @@ trait Classifier {
   val features = List(
     Feature("domain", (s:Story) => Classifier.domain(s.link)),
     Feature("word", (s:Story) => Classifier.words(s.title)),
-    Feature("bigram", (s:Story) => Classifier.bigrams(s.title)),
-    Feature("trigram", (s:Story) => Classifier.trigrams(s.title)))
+    Feature("bigram", (s:Story) => Classifier.bigrams(s.title)))
 
   def classify(story: Story): Double = {
     val posDocs = prefs.getLong("positive_headline_count", 0)

@@ -51,11 +51,6 @@ object NWSRDatabaseHelper {
                        "positive integer, " +
                        "negative integer);")
 
-  val createTrigrams = ("create table trigram (" +
-                        "repr string primary key, " +
-                        "positive integer, " +
-                        "negative integer);")
-
   val createSeen = ("create table seen (" +
                     "title integer primary key, " +
                     "updated integer);")
@@ -79,7 +74,6 @@ object NWSRDatabaseHelper {
               db.execSQL(createDomains)
               db.execSQL(createWords)
               db.execSQL(createBigrams)
-              db.execSQL(createTrigrams)
               db.execSQL(createSeen)
               db.execSQL(createSaved)
             }
@@ -87,7 +81,7 @@ object NWSRDatabaseHelper {
 
           override def onUpgrade(db: SQLiteDatabase, oldVer: Int,
                                  newVer: Int) {
-
+            // Remove trigram table in next version of database
           }
         }
         helper = Some(h)
