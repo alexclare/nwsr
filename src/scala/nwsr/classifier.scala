@@ -7,7 +7,6 @@ import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 
-import scala.collection.mutable.HashMap
 import scala.math.{exp, log}
 
 import com.aquamentis.util.Story
@@ -17,25 +16,47 @@ sealed abstract class StoryType
 case object PositiveStory extends StoryType
 case object NegativeStory extends StoryType
 
-/**
- * Certainly a US-English-centric portion of the program, and one that could
- * probably be adapted without much loss in quality; bigrams
- * aren't even filtered due to a lack of data regarding common ones.
+
+/** Extract and store features with varying method and shape
  *
- * Common words don't have much effect on the filter, and take up little space
- * in the grand scheme of things.
+ *  e.g. domain names need a fancy extract method, bigrams need a more complex
+ *       SQL insert and select statement
  */
-object Classifier {
+trait Feature {
+  type T
+  def table: String
+  def extract(s: Story): Array[T]
+  def where(value: T): String
+  def empty(value: T): String
+
+  def increment(value: T, cls: String, count: Int): String =
+    "update %s set %s = %s + %s where %s"
+    .format(table, cls, cls, count, where(value))
+
+  def insert(value: T): String =
+    "insert or ignore into %s values %s".format(table, empty(value))
+
+  def select(value: T): String =
+    "select positive, negative from %s where %s".format(table, where(value))
+}
+
+trait SingleStringFeature extends Feature {
+  type T = String;
+  def where(value: String) = "repr = '%s'".format(value)
+  def empty(value: String) = "('%s', 0, 0)".format(value)
+}
+
+class FeatureTally (val feature: Feature) {
+  import scala.collection.mutable.HashMap
+
+  val tally = (new HashMap[feature.T, Int]() {
+    override def default(key: feature.T): Int = 0
+  })
+}
+
+object Feature {
   // Exclude both ASCII and Unicode punctuation
   val punctuation = "[\\p{Punct}&&\\p{P}]+".r
-
-  def domain(str: String): Array[String] = {
-    val regex = "(?:([^:]*)://)?(?:([^/]*)/?)+?".r
-    Array(regex.findFirstMatchIn(str) match {
-      case None => ""
-      case Some(m) => if (m.groupCount >= 2) m.group(2) else ""
-    })
-  }
 
   /** Common stop words from the Python NLTK (www.nltk.org), which are in turn from
    *  http://anoncvs.postgresql.org/cvsweb.cgi/pgsql/src/backend/snowball/stopwords/
@@ -53,31 +74,52 @@ object Classifier {
     "some","such","nor","not","only","own","same","than","too","very","can",
     "will","just","should","now")
 
-  def words(str: String) = punctuation.replaceAllIn(str, " ")
-    .toLowerCase().split(' ')
-    .filter((word) => word.length > 2 && !commonWords.contains(word))
+  val domain = new SingleStringFeature {
+    val table = "domain"
 
-  def ngram(str: String, n: Int) = punctuation.split(str)
-    .flatMap(_.toLowerCase.split(' ').filter(_.length > 0)
-             .sliding(n).filterNot(_.size < n)
-             .map(_.reduceLeft(_ + " " + _)).toTraversable)
+    def extract(story: Story) = {
+      val regex = "(?:([^:]*)://)?(?:([^/]*)/?)+?".r
+      Array(regex.findFirstMatchIn(story.link) match {
+        case None => ""
+        case Some(m) => if (m.groupCount >= 2) m.group(2) else ""
+      })
+    }
+  }
 
-  def bigrams(str: String) = ngram(str, 2)
+  val words = new SingleStringFeature {
+    val table = "word"
+
+    def extract(story: Story) =
+      punctuation.replaceAllIn(story.title, " ")
+        .toLowerCase().split(' ')
+        .filter((word) => word.length > 2 && !commonWords.contains(word))
+  }
+
+  val bigrams = new Feature {
+    type T = (String, String)
+    val table = "bigram"
+
+    def extract(story: Story) =
+      punctuation.split(story.title)
+        .map((x) => x.toLowerCase.split(' ')).filterNot(_.isEmpty)
+        .flatMap((x) => x.zip(x.tail))
+        .filter((x) => x._1.length > 2 && x._2.length > 2 &&
+                !commonWords.contains(x._1) && !commonWords.contains(x._2))
+
+    def where(value: (String, String)) =
+      "repr1 = '%s' and repr2 = '%s'".format(value._1, value._2)
+
+    def empty(value: (String, String)) =
+      "('%s', '%s', 0, 0)".format(value._1, value._2)
+  }
+
+  val features = List(domain, words, bigrams)
 }
 
 
 trait Classifier {
   def db: SQLiteDatabase
   def prefs: SharedPreferences
-
-  case class Feature(
-    table: String,
-    extract: Story => TraversableOnce[String])
-
-  val features = List(
-    Feature("domain", (s:Story) => Classifier.domain(s.link)),
-    Feature("word", (s:Story) => Classifier.words(s.title)),
-    Feature("bigram", (s:Story) => Classifier.bigrams(s.title)))
 
   def classify(story: Story): Double = {
     val posDocs = prefs.getLong("positive_headline_count", 0)
@@ -87,7 +129,7 @@ trait Classifier {
     var positive: Double = log(posDocs) - totDocs
     var negative: Double = log(negDocs) - totDocs
 
-    features.foreach {
+    Feature.features.foreach {
       (feature:Feature) =>
       val posDenom = log(db.query(
         "select sum(positive+1) from %s".format(feature.table))
@@ -96,9 +138,7 @@ trait Classifier {
         "select sum(negative+1) from %s".format(feature.table))
         .singleRow[Double](_.getLong(0)))
       for (item <- feature.extract(story)) {
-        db.query(
-          "select positive, negative from %s where repr = '%s'"
-          .format(feature.table, item)).ifExists {
+        db.query(feature.select(item)).ifExists {
             (c: Cursor) =>
               positive += log(c.getLong(0) + 1) - posDenom
               negative += log(c.getLong(1) + 1) - negDenom
@@ -110,10 +150,7 @@ trait Classifier {
 
   def train(ids: Array[Long], storyType: StoryType) {
     val editor = prefs.edit()
-    val tally = features.map {
-      (c) => (c, new HashMap[String, Int]() {
-      override def default(key: String): Int = 0
-      })}
+    val feats = Feature.features.map((f) => new FeatureTally(f))
     val idString = ids.mkString(", ")
     val (thisClass, otherClass) = storyType match {
       case PositiveStory => ("positive", "negative")
@@ -125,22 +162,20 @@ trait Classifier {
     .foreach {
       (c: Cursor) =>
         val story = Story(c.getString(0), c.getString(1))
-        tally.foreach {
-          (feature: (Feature, HashMap[String, Int])) =>
-            for (item <- feature._1.extract(story)) {
-              feature._2(item) = feature._2(item) + 1
+        feats.foreach {
+          (ft: FeatureTally) =>
+            for (item <- ft.feature.extract(story)) {
+              ft.tally(item) = ft.tally(item) + 1
             }
         }
     }
 
     db.exclusiveTransaction {
-      tally.foreach {
-        (feature: (Feature, HashMap[String, Int])) =>
-          for (item <- feature._2.keySet) {
-            db.execSQL("insert or ignore into %s values ('%s', 0, 0)".format(
-              feature._1.table, item))
-            db.execSQL("update %s set %s = %s + %s where repr = '%s'".format(
-              feature._1.table, thisClass, thisClass, feature._2(item), item))
+      feats.foreach {
+        (ft: FeatureTally) =>
+          for (item <- ft.tally.keySet) {
+            db.execSQL(ft.feature.insert(item))
+            db.execSQL(ft.feature.increment(item, thisClass, ft.tally(item)))
           }
       }
     }
@@ -155,6 +190,7 @@ trait Classifier {
     db.execSQL("delete from story where _id in (" + idString + ")")
   }
 }
+
 
 class TrainingService extends IntentService ("NWSRTrainingService") {
   var db: NWSRDatabase = _

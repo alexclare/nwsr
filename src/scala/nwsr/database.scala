@@ -17,7 +17,7 @@ import com.aquamentis.util.RichDatabase._
 
 object NWSRDatabaseHelper {
   val name = "nwsr.db"
-  val version = 2
+  val version = 5
 
   val createStories = ("create table story (" +
                        "_id integer primary key, " +
@@ -47,9 +47,11 @@ object NWSRDatabaseHelper {
                      "negative integer);")
 
   val createBigrams = ("create table bigram (" +
-                       "repr string primary key, " +
+                       "repr1 string, " +
+                       "repr2 string, " +
                        "positive integer, " +
-                       "negative integer);")
+                       "negative integer, " +
+                       "primary key (repr1, repr2));")
 
   val createSeen = ("create table seen (" +
                     "title integer primary key, " +
@@ -81,7 +83,13 @@ object NWSRDatabaseHelper {
 
           override def onUpgrade(db: SQLiteDatabase, oldVer: Int,
                                  newVer: Int) {
-            // Remove trigram table in next version of database
+            if (oldVer == 4) {
+              db.exclusiveTransaction {
+                db.execSQL("drop table trigram;")
+                db.execSQL("drop table bigram;")
+                db.execSQL(createBigrams)
+              }
+            }
           }
         }
         helper = Some(h)
