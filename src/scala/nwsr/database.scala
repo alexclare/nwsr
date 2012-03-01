@@ -208,10 +208,8 @@ extends Classifier {
   def purgeOld() {
     val timeAgo: Long = System.currentTimeMillis -
       prefs.getString("max_story_age", "604800000").toLong
-    db.exclusiveTransaction {
-      db.execSQL("delete from story where updated < %d".format(timeAgo))
-      db.execSQL("delete from seen where updated < %d".format(timeAgo))
-    }
+    db.delete("story", "updated < ? and status = 0 or 1",
+              Array(timeAgo.toString))
   }
 
   def addSaved(id: Long) {
