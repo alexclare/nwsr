@@ -186,8 +186,6 @@ trait Classifier {
     }
     editor.putLong(headlineKey, prefs.getLong(headlineKey, 0) + ids.length)
     editor.commit()
-
-    db.execSQL("delete from story where _id in (" + idString + ")")
   }
 }
 

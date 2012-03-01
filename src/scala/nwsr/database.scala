@@ -25,7 +25,7 @@ object NWSRDatabaseHelper {
                        "link string, " +
                        "weight real, " +
                        "updated integer, " +
-                       "show integer, " +
+                       "status integer, " +
                        "feed integer references feed);")
 
   val createFeeds = ("create table feed (" +
@@ -57,11 +57,6 @@ object NWSRDatabaseHelper {
                     "title integer primary key, " +
                     "updated integer);")
 
-  val createSaved = ("create table saved (" +
-                     "_id integer primary key, " +
-                     "title string, " +
-                     "link string);")
-
   var helper: Option[SQLiteOpenHelper] = None
 
   def apply(context: Context): SQLiteOpenHelper = synchronized {
@@ -77,7 +72,6 @@ object NWSRDatabaseHelper {
               db.execSQL(createWords)
               db.execSQL(createBigrams)
               db.execSQL(createSeen)
-              db.execSQL(createSaved)
             }
           }
 
@@ -113,9 +107,8 @@ extends Classifier {
 
   def storyView(): Cursor = {
     val limit = prefs.getString("stories_per_page", "20")
-    val query = "select _id, title, link from story where show = 1 " +
-                "order by weight desc limit %s"
-    db.rawQuery(query.format(limit), Array.empty[String])
+    db.query("story", Array("_id", "title", "link"),
+             "status = 1", null, null, null, "weight desc", limit)
   }
 
   def feedView(): Cursor = db.query(
@@ -123,8 +116,8 @@ extends Classifier {
     null, null, null, null, "title asc")
 
   def savedView(): Cursor = db.query(
-    "saved", Array("_id", "title", "link"),
-    null, null, null, null, "_id desc")
+    "story", Array("_id", "title", "link"),
+    "status = 2", null, null, null, "updated desc")
 
 
   def addFeed(feed: Feed, id: Option[Long]) {
@@ -198,7 +191,7 @@ extends Classifier {
         values.put("updated", java.lang.Long.valueOf(now))
         seen.put("updated", java.lang.Long.valueOf(now))
 
-        values.put("show", java.lang.Integer.valueOf(1))
+        values.put("status", java.lang.Integer.valueOf(1))
         values.put("feed", java.lang.Long.valueOf(id))
 
         db.insert("story", null, values)
@@ -208,7 +201,7 @@ extends Classifier {
 
   def hideStories(ids: Array[Long]) {
     val values = new ContentValues()
-    values.put("show", java.lang.Integer.valueOf(0))
+    values.put("status", java.lang.Integer.valueOf(0))
     db.update("story", values, "_id in (%s)".format(ids.mkString(", ")), null)
   }
 
@@ -221,17 +214,20 @@ extends Classifier {
     }
   }
 
-  def addSaved(story: Story) {
+  def addSaved(id: Long) {
     val values = new ContentValues()
-    values.put("title", story.title)
-    values.put("link", story.link)
-    db.insert("saved", null, values)
+    values.put("status", java.lang.Integer.valueOf(2))
+    values.put("updated", java.lang.Long.valueOf(System.currentTimeMillis))
+    db.update("story", values, "_id = ?", Array(id.toString))
   }
 
   def deleteSaved(id: Option[Long]) {
+    val values = new ContentValues()
+    values.put("status", java.lang.Integer.valueOf(0))
     id match {
-      case None => db.delete("saved", null, null)
-      case Some(id) => db.delete("saved", "_id = " + id, null)
+      case None => db.update("story", values, "status = 2", null)
+      case Some(id) => db.update(
+        "story", values, "_id = ?",Array(id.toString))
     }
   }
 }
