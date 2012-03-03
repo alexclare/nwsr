@@ -217,10 +217,7 @@ extends Classifier {
   def titleHash(story: Story): String = {
     val processed = story.title.toLowerCase
     "%08x%08x%08x".format(
-      SortedSet(
-        processed.zip(processed.tail)
-        .zip(processed.tail.tail).map(
-          (x) => ("" + x._1._1 + x._1._2 + x._2).hashCode()):_*)
+      SortedSet(processed.sliding(3).map(_.hashCode).toSeq:_*)
       .take(3).toSeq:_*)
   }
 
