@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.preference.PreferenceManager
 
+import scala.collection.immutable.SortedSet
 import scala.math.pow
 import scala.util.Random
 
@@ -17,11 +18,12 @@ import com.aquamentis.util.RichDatabase._
 
 object NWSRDatabaseHelper {
   val name = "nwsr.db"
-  val version = 5
+  val version = 6
 
   val createStories = ("create table story (" +
                        "_id integer primary key, " +
                        "title string, " +
+                       "title_hash blob, " +
                        "link string, " +
                        "weight real, " +
                        "updated integer, " +
@@ -53,10 +55,6 @@ object NWSRDatabaseHelper {
                        "negative integer, " +
                        "primary key (repr1, repr2));")
 
-  val createSeen = ("create table seen (" +
-                    "title integer primary key, " +
-                    "updated integer);")
-
   var helper: Option[SQLiteOpenHelper] = None
 
   def apply(context: Context): SQLiteOpenHelper = synchronized {
@@ -71,7 +69,6 @@ object NWSRDatabaseHelper {
               db.execSQL(createDomains)
               db.execSQL(createWords)
               db.execSQL(createBigrams)
-              db.execSQL(createSeen)
             }
           }
 
@@ -172,31 +169,59 @@ extends Classifier {
 
 
   def addStory(story: Story, id: Long) {
-    db.query(
-      "select 1 where exists (select null from seen where title = %d)"
-      .format(story.title.hashCode())).ifNotExists {
-        val values = new ContentValues()
-        val seen = new ContentValues()
-        val now: Long = System.currentTimeMillis
-        values.put("title", story.title)
-        seen.put("title", java.lang.Integer.valueOf(story.title.hashCode()))
+    val hash = titleHash(story)
+    // Assume http, https links remain as they are
+    val link = story.link.stripPrefix("http://")
 
-        // Assume http, https links remain as they are
-        values.put("link", story.link.stripPrefix("http://"))
+/*
+ * For the coming update to util/database and classifier:
+ Query(db.rawQuery("select 1 where exists (select null from story where title_hash = ? and link = ?)", Array(hash, link)))
+*/
+    db.query("select 1 where exists (select null from story where title_hash = '%s' and link = '%s')"
+             .format(hash, link))
+    .ifNotExists {
+      val values = new ContentValues()
+      val now: Long = System.currentTimeMillis
+      values.put("title", story.title)
+      values.put("title_hash", hash)
+      values.put("link", link)
 
+/*
+      Query(db.query(
+        "story", Array("weight"), "title_hash = ?",
+        Array(hash), null, null))
+*/   
+      db.query("select weight from story where title_hash = '%s'".format(hash))
+      .ifExists {
+        (c: Cursor) => values.put("weight", c.getDouble(0))
+      } otherwise {
         val cf = classify(story)
         values.put(
           "weight", pow(rng.nextDouble(), if (cf > 0) (1/(cf+1.0)) else 1.0))
-
-        values.put("updated", java.lang.Long.valueOf(now))
-        seen.put("updated", java.lang.Long.valueOf(now))
-
-        values.put("status", java.lang.Integer.valueOf(1))
-        values.put("feed", java.lang.Long.valueOf(id))
-
-        db.insert("story", null, values)
-        db.insert("seen", null, seen) 
       }
+
+      values.put("updated", java.lang.Long.valueOf(now))
+      values.put("status", java.lang.Integer.valueOf(1))
+      values.put("feed", java.lang.Long.valueOf(id))
+
+      db.insert("story", null, values)        
+    }
+  }
+
+  /** Construct a hash value for the story by concatenating the smallest
+   *    3 hash values of character trigrams of the title.
+   *
+   *  There are faster ways to find the minimum 3 than sorting, but we'll
+   *    never have thousands of items to sift through.
+   */
+  def titleHash(story: Story): String = {
+    val processed = story.title.toLowerCase
+    "%08x%08x%08x".format(
+      SortedSet(
+        processed.zip(processed.tail)
+        .zip(processed.tail.tail).map(
+          (x) => ("" + x._1._1 + x._1._2 + x._2).hashCode()):_*)
+      .take(3).toSeq:_*)
   }
 
   def hideStories(ids: Array[Long]) {

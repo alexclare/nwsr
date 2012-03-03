@@ -62,12 +62,14 @@ class Query(val cursor: Cursor) {
   }
 
   def ifExists(fn: (Cursor => Unit)): QueryOtherwise = {
+    var qo: QueryOtherwise = new QueryOtherwiseFunction()
     if (cursor.getCount > 0) {
       cursor.moveToFirst()
       fn(cursor)
+      qo = new QueryOtherwiseNothing()
     }
     cursor.close()
-    new QueryOtherwise()
+    qo
   }
 
   def ifNotExists(fn: => Unit) {
@@ -78,9 +80,16 @@ class Query(val cursor: Cursor) {
   }
 }
 
-class QueryOtherwise {
+trait QueryOtherwise {
+  def otherwise(fn: => Unit)
+}
+
+class QueryOtherwiseFunction extends QueryOtherwise {
   def otherwise(fn: => Unit) {
     fn
   }
 }
 
+class QueryOtherwiseNothing extends QueryOtherwise {
+  def otherwise(fn: => Unit) { }
+}
