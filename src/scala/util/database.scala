@@ -31,6 +31,13 @@ class RichDatabase(db: SQLiteDatabase) {
   }
 
   def query(query: String) = new Query(db.rawQuery(query, Array.empty[String]))
+
+  def singleLongQuery(query: String): Long = {
+    val statement = db.compileStatement(query)
+    val result = statement.simpleQueryForLong()
+    statement.close()
+    result
+  }
 }
 
 class RichCursor(cur: Cursor) {
@@ -52,13 +59,6 @@ class Query(val cursor: Cursor) {
       fn(cursor)
     }
     cursor.close()
-  }
-
-  def singleRow[T](fn: (Cursor => T)) = {
-    cursor.moveToFirst()
-    val result = fn(cursor)
-    cursor.close()
-    result
   }
 
   def ifExists(fn: (Cursor => Unit)): QueryOtherwise = {

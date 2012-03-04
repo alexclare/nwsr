@@ -131,12 +131,10 @@ trait Classifier {
 
     Feature.features.foreach {
       (feature:Feature) =>
-      val posDenom = log(db.query(
-        "select sum(positive+1) from %s".format(feature.table))
-        .singleRow[Double](_.getLong(0)))
-      val negDenom = log(db.query(
-        "select sum(negative+1) from %s".format(feature.table))
-        .singleRow[Double](_.getLong(0)))
+      val posDenom = log(db.singleLongQuery(
+        "select sum(positive+1) from %s".format(feature.table)))
+      val negDenom = log(db.singleLongQuery(
+        "select sum(negative+1) from %s".format(feature.table)))
       for (item <- feature.extract(story)) {
         db.query(feature.select(item)).ifExists {
             (c: Cursor) =>
