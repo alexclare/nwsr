@@ -173,10 +173,6 @@ extends Classifier {
     // Assume http, https links remain as they are
     val link = story.link.stripPrefix("http://")
 
-/*
- * For the coming update to util/database and classifier:
- Query(db.rawQuery("select 1 where exists (select null from story where title_hash = ? and link = ?)", Array(hash, link)))
-*/
     db.query("select 1 where exists (select null from story where title_hash = '%s' and link = '%s')"
              .format(hash, link))
     .ifNotExists {
@@ -186,11 +182,6 @@ extends Classifier {
       values.put("title_hash", hash)
       values.put("link", link)
 
-/*
-      Query(db.query(
-        "story", Array("weight"), "title_hash = ?",
-        Array(hash), null, null))
-*/   
       db.query("select weight from story where title_hash = '%s'".format(hash))
       .ifExists {
         (c: Cursor) => values.put("weight", c.getDouble(0))
