@@ -68,6 +68,7 @@ class FeatureTally (val feature: Feature) {
   })
 }
 
+// Might do with some reorganization (i.e. FeatureTally and other classes into object)
 object Feature {
   // Exclude both ASCII and Unicode punctuation
   val punctuation = "[\\p{Punct}&&\\p{P}]+".r
@@ -192,7 +193,7 @@ trait Classifier {
   }
 }
 
-
+/*
 class TrainingService extends IntentService ("NWSRTrainingService") {
   var db: NWSRDatabase = _
 
@@ -211,3 +212,4 @@ class TrainingService extends IntentService ("NWSRTrainingService") {
     }
   }
 }
+*/

@@ -98,8 +98,7 @@ object NWSRDatabase {
   }
 }
 
-class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences)
-extends Classifier {
+class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences) {
   val rng: Random = new Random()
 
   def storyView(): Cursor = {
@@ -133,9 +132,8 @@ extends Classifier {
       case None =>
     }
 
-    /* This would be a good place for a wrapped transaction, but addStory
-     *   involves too much processing (a call to classifyStory) for the
-     *   transaction to be exclusive
+    /* This might be a good place for a wrapped transaction, but addStory
+     *   involves a lot of processing for the transaction to be exclusive
      */
     val feedId = id match {
       case None => db.insert("feed", null, values)
@@ -177,21 +175,20 @@ extends Classifier {
              .format(hash, link))
     .ifNotExists {
       val values = new ContentValues()
-      val now: Long = System.currentTimeMillis
       values.put("title", story.title)
       values.put("title_hash", hash)
       values.put("link", link)
 
-      db.query("select weight from story where title_hash = '%s'".format(hash))
+      db.query("select weight, updated from story where title_hash = '%s'".format(hash))
       .ifExists {
-        (c: Cursor) => values.put("weight", c.getDouble(0))
+        (c: Cursor) =>
+          values.put("weight", c.getDouble(0))
+          values.put("updated", java.lang.Long.valueOf(c.getLong(1)))
       } otherwise {
-        val cf = classify(story)
-        values.put(
-          "weight", pow(rng.nextDouble(), if (cf > 0) (1/(cf+1.0)) else 1.0))
+        values.put("weight", rng.nextDouble())
+        values.put("updated", java.lang.Long.valueOf(System.currentTimeMillis))
       }
 
-      values.put("updated", java.lang.Long.valueOf(now))
       values.put("status", java.lang.Integer.valueOf(1))
       values.put("feed", java.lang.Long.valueOf(id))
 

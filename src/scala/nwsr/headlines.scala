@@ -88,7 +88,6 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         arr.result()
       }
       db.hideStories(ids)
-      categorize(ids, NegativeStory)
       updateView()
       getListView.setSelectionAfterHeaderView()
     }
@@ -114,20 +113,17 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
         val url = info.targetView.findViewById(R.id.headline_link)
           .asInstanceOf[TextView].getText.toString
         db.hideStories(Array(info.id))
-        categorize(Array(info.id), PositiveStory)
         openInBrowser(url)
         updateView()
         true
       }
       case R.id.save => {
         db.addSaved(info.id)
-        categorize(Array(info.id), PositiveStory)
         updateView()
         true
       }
       case R.id.delete => {
         db.hideStories(Array(info.id))
-        categorize(Array(info.id), NegativeStory)
         updateView()
         false
       }
@@ -140,16 +136,5 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       cursor = db.storyView()
       adapter.changeCursor(cursor)
     }
-  }
-
-  def categorize(ids: Array[Long], storyType: StoryType) {
-    val intent = new Intent(this, classOf[TrainingService])
-    intent.putExtra("ids", ids)
-    intent.putExtra("class",
-                    storyType match {
-                      case PositiveStory => 1
-                      case NegativeStory => 0
-                    })
-    startService(intent)
   }
 }
