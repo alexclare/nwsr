@@ -24,16 +24,16 @@
     <item>2</item>
     <item>3</item>
   </string-array>
-  <string-array name="prefs_max_story_age">
+  <string-array name="prefs_story_decay_rate">
     <item>3 days</item>
     <item>1 week</item>
     <item>2 weeks</item>
-    <item>4 weeks</item>
+    <item>3 weeks</item>
   </string-array>
-  <string-array name="prefs_max_story_age_values">
-    <item>259200000</item>
-    <item>604800000</item>
-    <item>1209600000</item>
-    <item>2419200000</item>
+  <string-array name="prefs_story_decay_rate_values">
+    <item>8.88343e-09</item>
+    <item>3.80718e-09</item>
+    <item>1.90359e-09</item>
+    <item>1.26906e-09</item>
   </string-array>
 </resources>

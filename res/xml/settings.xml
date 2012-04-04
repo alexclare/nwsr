@@ -18,12 +18,12 @@
      android:defaultValue="0"
      />
   <ListPreference
-     android:key="max_story_age"
-     android:title="@string/prefs_max_story_age_title"
-     android:summary="@string/prefs_max_story_age_summary"
-     android:entries="@array/prefs_max_story_age"
-     android:entryValues="@array/prefs_max_story_age_values"
-     android:defaultValue="604800000"
+     android:key="story_decay_rate"
+     android:title="@string/prefs_story_decay_rate_title"
+     android:summary="@string/prefs_story_decay_rate_summary"
+     android:entries="@array/prefs_story_decay_rate"
+     android:entryValues="@array/prefs_story_decay_rate_values"
+     android:defaultValue="8.88343e-09"
      />
   <PreferenceCategory
      android:title="@string/prefs_miscellaneous_title">

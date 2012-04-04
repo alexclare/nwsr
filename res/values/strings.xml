@@ -21,8 +21,8 @@
     <string name="prefs_stories_per_page_summary"> </string>
     <string name="prefs_feed_refresh_rate_title">Feed refresh rate</string>
     <string name="prefs_feed_refresh_rate_summary">Automatically refresh feeds</string>
-    <string name="prefs_max_story_age_title">Mark headlines old after</string>
-    <string name="prefs_max_story_age_summary">Discard old headlines on refresh</string>
+    <string name="prefs_story_decay_rate_title">Headline age rate</string>
+    <string name="prefs_story_decay_rate_summary">Average time to drop to the bottom</string>
     <string name="prefs_miscellaneous_title">Miscellaneous</string>
     <string name="prefs_license_title">License</string>
 

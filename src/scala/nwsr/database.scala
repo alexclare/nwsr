@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.preference.PreferenceManager
 
 import scala.collection.immutable.SortedSet
-import scala.math.pow
+import scala.math.exp
 import scala.util.Random
 
 import com.aquamentis.util.Feed
@@ -27,6 +27,8 @@ object NWSRDatabaseHelper {
                        "link string, " +
                        "weight real, " +
                        "updated integer, " +
+
+  // Status = 0 for hidden, 1 for "headlines", 2 for "saved"
                        "status integer, " +
                        "feed integer references feed);")
 
@@ -179,14 +181,16 @@ class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences) {
       values.put("title_hash", hash)
       values.put("link", link)
 
-      db.query("select weight, updated from story where title_hash = '%s'".format(hash))
+      values.put("weight", rng.nextDouble())
+      values.put("updated", java.lang.Long.valueOf(System.currentTimeMillis))
+      db.query("select weight, updated, status from story where title_hash = '%s' order by status asc".format(hash))
       .ifExists {
         (c: Cursor) =>
-          values.put("weight", c.getDouble(0))
-          values.put("updated", java.lang.Long.valueOf(c.getLong(1)))
-      } otherwise {
-        values.put("weight", rng.nextDouble())
-        values.put("updated", java.lang.Long.valueOf(System.currentTimeMillis))
+          val status = c.getInt(2)
+          if (status == 0 || status == 1) {
+            values.put("weight", c.getDouble(0))
+            values.put("updated", java.lang.Long.valueOf(c.getLong(1)))
+          }
       }
 
       values.put("status", java.lang.Integer.valueOf(1))
@@ -217,10 +221,28 @@ class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences) {
   }
 
   def purgeOld() {
-    val timeAgo: Long = System.currentTimeMillis -
-      prefs.getString("max_story_age", "604800000").toLong
-    db.delete("story", "updated < ? and status = 0 or 1",
-              Array(timeAgo.toString))
+    val rate: Double = prefs.getString("story_decay_rate", "8.88343e-09").toDouble
+    val now = System.currentTimeMillis
+    db.exclusiveTransaction {
+      db.query("select _id, weight, updated from story where status = 1").foreach {
+        (c: Cursor) =>
+          val timeAgo = now - c.getLong(2)
+          if (timeAgo > 3600000) {
+            val values = new ContentValues()
+            values.put("weight", c.getDouble(1) * exp(-1.0*rate*timeAgo))
+            values.put("updated", java.lang.Long.valueOf(now))
+            db.update("story", values, "_id = ?",
+                      Array[String](c.getLong(0).toString))
+          }
+      }
+    }
+
+    val stories = db.singleLongQuery("select count(*) from story where not status = 2")
+    // Hard limit of 10000 stories for now, maybe make it a preference later
+    if (stories > 10000) {
+      db.execSQL("delete from story where _id in (select _id from story order by weight asc limit %d)"
+                 .format(stories - 10000))
+    }
   }
 
   def addSaved(id: Long) {
