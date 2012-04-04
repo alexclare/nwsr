@@ -10,6 +10,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
+import android.widget.ListView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
@@ -24,6 +25,7 @@ class SavedItems extends DatabaseActivity {
     setContentView(R.layout.saved)
     
     registerForContextMenu(getListView)
+    getListView.setLongClickable(false)
     cursor = db.savedView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.headline, cursor, Array("title", "link"),
@@ -62,6 +64,10 @@ class SavedItems extends DatabaseActivity {
         true
       }
     }
+
+  override def onListItemClick(lv: ListView, v: View, pos: Int, id: Long) {
+    lv.showContextMenuForChild(v)
+  }
 
   override def onCreateContextMenu(menu: ContextMenu, v: View,
                                    menuInfo: ContextMenu.ContextMenuInfo) {

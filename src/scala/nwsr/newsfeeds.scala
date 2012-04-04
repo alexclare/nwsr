@@ -27,6 +27,7 @@ class NewsFeeds extends DatabaseActivity with DialogFeedRetriever {
     getListView.addHeaderView(inflater.inflate(R.layout.button_add_feed, null))
 
     registerForContextMenu(getListView)
+    getListView.setLongClickable(false)
     cursor = db.feedView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.feed, cursor, Array("title", "display_link"),
@@ -47,6 +48,8 @@ class NewsFeeds extends DatabaseActivity with DialogFeedRetriever {
   override def onListItemClick(lv: ListView, v: View, pos: Int, id: Long) {
     if (id < 0) {
       showDialog(AddFeed)
+    } else {
+      lv.showContextMenuForChild(v)
     }
   }
 

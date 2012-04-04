@@ -34,7 +34,8 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
     getListView.addFooterView(
       inflater.inflate(R.layout.button_next_headline, null))
 
-    registerForContextMenu(getListView)    
+    registerForContextMenu(getListView)
+    getListView.setLongClickable(false)
     cursor = db.storyView()
     adapter = new SimpleCursorAdapter(
       this, R.layout.headline, cursor, Array("title", "link"),
@@ -90,6 +91,8 @@ with SharedPreferences.OnSharedPreferenceChangeListener {
       db.hideStories(ids)
       updateView()
       getListView.setSelectionAfterHeaderView()
+    } else {
+      lv.showContextMenuForChild(v)
     }
   }
 
