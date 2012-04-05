@@ -40,23 +40,6 @@ object NWSRDatabaseHelper {
                      "etag string, " +
                      "last_modified string);")
 
-  val createDomains = ("create table domain (" +
-                       "repr string primary key, " +
-                       "positive integer, " +
-                       "negative integer);")
-
-  val createWords = ("create table word (" +
-                     "repr string primary key, " +
-                     "positive integer, " +
-                     "negative integer);")
-
-  val createBigrams = ("create table bigram (" +
-                       "repr1 string, " +
-                       "repr2 string, " +
-                       "positive integer, " +
-                       "negative integer, " +
-                       "primary key (repr1, repr2));")
-
   var helper: Option[SQLiteOpenHelper] = None
 
   def apply(context: Context): SQLiteOpenHelper = synchronized {
@@ -68,19 +51,19 @@ object NWSRDatabaseHelper {
             db.exclusiveTransaction {
               db.execSQL(createStories)
               db.execSQL(createFeeds)
-              db.execSQL(createDomains)
-              db.execSQL(createWords)
-              db.execSQL(createBigrams)
             }
           }
 
           override def onUpgrade(db: SQLiteDatabase, oldVer: Int,
                                  newVer: Int) {
-            if (oldVer == 4) {
+            if (oldVer == 5) {
               db.exclusiveTransaction {
-                db.execSQL("drop table trigram;")
+                db.execSQL("drop table story")
+                db.execSQL(createStories)
+                db.execSQL("drop table saved;")
                 db.execSQL("drop table bigram;")
-                db.execSQL(createBigrams)
+                db.execSQL("drop table word;")
+                db.execSQL("drop table domain;")
               }
             }
           }
@@ -98,9 +81,24 @@ object NWSRDatabase {
     new NWSRDatabase(NWSRDatabaseHelper(context).getWritableDatabase(),
                      PreferenceManager.getDefaultSharedPreferences(context))
   }
+
+  /** Construct a hash value for the story by concatenating the smallest
+   *    3 hash values of character trigrams of the title.
+   *
+   *  There are faster ways to find the minimum 3 than sorting, but we'll
+   *    never have thousands of items to sift through.
+   */
+  def titleHash(story: Story): String = {
+    val processed = story.title.toLowerCase
+    "%08x%08x%08x".format(
+      (SortedSet(processed.sliding(3).map(_.hashCode).toSeq:_*) ++
+       Seq(Int.MaxValue, Int.MaxValue-1, Int.MaxValue-2))
+      .take(3).toSeq:_*)
+  }
 }
 
 class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences) {
+  import NWSRDatabase._
   val rng: Random = new Random()
 
   def storyView(): Cursor = {
@@ -198,20 +196,6 @@ class NWSRDatabase (val db: SQLiteDatabase, val prefs: SharedPreferences) {
 
       db.insert("story", null, values)        
     }
-  }
-
-  /** Construct a hash value for the story by concatenating the smallest
-   *    3 hash values of character trigrams of the title.
-   *
-   *  There are faster ways to find the minimum 3 than sorting, but we'll
-   *    never have thousands of items to sift through.
-   */
-  def titleHash(story: Story): String = {
-    val processed = story.title.toLowerCase
-    "%08x%08x%08x".format(
-      (SortedSet(processed.sliding(3).map(_.hashCode).toSeq:_*) ++
-       Seq(Int.MaxValue, Int.MaxValue-1, Int.MaxValue-2))
-      .take(3).toSeq:_*)
   }
 
   def hideStories(ids: Array[Long]) {
